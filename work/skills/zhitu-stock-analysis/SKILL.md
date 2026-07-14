@@ -1,6 +1,6 @@
 ---
 name: zhitu-stock-analysis
-description: Analyze or screen one or more eligible Shanghai/Shenzhen main-board A-shares with Zhitu Data Service APIs, primary disclosures, global-market context, sector-rotation positioning, conditional stock candidates, and model-portfolio position ranges. Use for realtime snapshots, batch candidate screening, limit-up opportunity research, review, fundamentals, industry position, evidence quality, overseas risk transmission, current sector-rotation stage, candidate reasons, staged entries, and invalidation-aware exposure planning with a user-provided Zhitu API token. Excludes ChiNext, STAR Market, ST/*ST, and other stocks outside the user's tradable main-board universe by default.
+description: Screen and analyze eligible Shanghai/Shenzhen main-board A-shares for short-term trading research with Zhitu Data Service APIs, market sentiment, observable capital-behavior proxies, sector rotation, primary disclosures, global-market context, conditional candidates, and staged model-portfolio exposure. Use for intraday, next-session, 2-5-session, bottom-launch, potential-acceleration, first-limit-up, consecutive-limit-up, batch screening, daily review, catalyst and earnings validation, rotation candidates, entry conditions, and invalidation planning. Supports 5-20-session continuation checks only as secondary confirmation; does not provide long-term stock picks, target prices, or holding recommendations. Excludes ChiNext, STAR Market, ST/*ST, and other stocks outside the user's tradable main-board universe by default.
 ---
 
 # 智兔股票分析
@@ -11,7 +11,7 @@ Never expose a token in browser code, commands shown to the user, logs, generate
 
 For a safe entitlement smoke test, run `python scripts/test_connection.py`. The script reads only `ZHITU_API_TOKEN`, tests four low-frequency read-only endpoint families, and prints counts/status without response contents or the token.
 
-Run `python scripts/data_quality.py <kind> <json-file>` to validate saved `quote`, `stock-list`, or `financial-ratios` payloads before using them in analysis.
+Run `python scripts/self_check.py` after installation. Run `python scripts/data_quality.py <kind> <json-file>` to validate saved `quote`, `stock-list`, `bars`, `limit-pool`, or `financial-ratios` payloads before using them in analysis.
 
 ## Required references
 
@@ -20,9 +20,12 @@ Read these files before acting:
 1. [references/zhitu-api.md](references/zhitu-api.md) for endpoint selection, cadence, and limitations.
 2. [references/analysis-framework.md](references/analysis-framework.md) for scoring, evidence gates, and outputs.
 3. [references/data-quality-gates.md](references/data-quality-gates.md) before accepting API, financial, historical, or backtest data.
-4. [references/global-risk-overlay.md](references/global-risk-overlay.md) for every analysis; keep the block compact for long-horizon fundamental work but never omit the data cutoff, overseas session state, or transmission assessment.
+4. [references/global-risk-overlay.md](references/global-risk-overlay.md) for every analysis; keep it focused on the requested short-term transmission window and never omit the data cutoff or overseas session state.
 5. [references/sector-rotation.md](references/sector-rotation.md) for every single-stock analysis, batch screen, market review, or short-horizon outlook.
 6. [references/rotation-candidates-and-positioning.md](references/rotation-candidates-and-positioning.md) whenever the user requests stocks corresponding to a rotation, entry conditions, position size, an aggressive/balanced/conservative plan, or a trade-oriented shortlist.
+7. [references/automation.md](references/automation.md) before running the API client, deterministic pre-screen, rotation classifier, or T+1/T+5/T+20 evaluation ledger.
+8. [references/short-term-selection.md](references/short-term-selection.md) before every screen, candidate list, position plan, or daily review.
+9. [references/launch-and-limit-signals.md](references/launch-and-limit-signals.md) whenever the user requests bottom-launch, acceleration, likely limit-up, first-board, or consecutive-board candidates.
 
 ## Hard tradability gate
 
@@ -44,24 +47,29 @@ Accept:
 - one stock code for a full diagnostic;
 - several codes for comparison;
 - a market-wide or sector screen;
-- a requested horizon: intraday observation, next session, 2–5 sessions, swing, or fundamental research.
+- a requested horizon: intraday observation, next session, 2–5 sessions, or a secondary 5–20-session continuation check.
+
+Default to short-term research. Do not produce long-term picks, long-term target prices, or long-term holding plans. Keep fundamentals, orders, capacity, and industry position as catalyst-verification and risk filters for short-term or medium-term continuation.
 
 Normalize symbols and confirm board/type with instrument metadata where possible. Split realtime multi-symbol requests into batches of at most 20. If no token is available, produce the request plan and evidence checklist without inventing live values.
 
 ## Workflow
 
-1. **Set the target.** Define one outcome and horizon. Keep `next-session limit-up`, `next-session positive return`, and `five-session excess return` as separate labels.
+1. **Set the short-term target.** Define one outcome and cutoff. Keep `next-session limit-up`, `next-session positive return`, and `five-session excess return` as separate labels. Use 5–20 sessions only for secondary continuation review.
 2. **Apply the tradability gate.** Remove ineligible boards and ST/*ST before ranking.
 3. **Apply the data-quality gate.** Validate shape, fields, units, freshness, formulas, missing-value reasons, adjustment method, and point-in-time availability using [references/data-quality-gates.md](references/data-quality-gates.md). Stop scoring on hard errors or a score below 80.
 4. **Reconcile material data.** Compare realtime endpoint families within the same source-time window. Verify key financial values with an independent source and use the original filing to resolve differences above 5%.
 5. **Build the mandatory market and rotation pack.** For every analysis, report core-index direction, multi-period trend, total-market liquidity versus comparable windows, breadth, limit-up/down/broken-board structure, style, current market regime, and sector concentration. Classify sectors by rotation stage using [references/sector-rotation.md](references/sector-rotation.md); report which sectors are leading, strengthening, diverging, fading, or only candidates for observation.
 6. **Add the mandatory global overlay.** For every analysis, assess US, Japanese, Korean, Hong Kong, commodity, FX, rate, overseas-policy, and geopolitical transmission using [references/global-risk-overlay.md](references/global-risk-overlay.md). Timestamp every observation and identify whether each market is intraday, closed, or from the prior session.
-7. **Create a data-only pre-screen.** Use liquidity, relative strength, turnover, trend, limit-up structure, sector breadth, and risk flags only to narrow research candidates. Label it `pre-screen`, not a final recommendation.
+7. **Create a data-only pre-screen.** Use liquidity, relative strength, turnover, trend, limit-up structure, sector breadth, and risk flags only to narrow research candidates. Label it `pre-screen`, not a final recommendation. For launch/acceleration/limit-up requests, run `scripts/short_term_signals.py` and preserve its separate signal labels.
 8. **Verify the business case.** For every surviving candidate, inspect filings, financial statements, official website disclosures, and investor-relations/research records. Quantify industry position, catalyst-related revenue share, earnings elasticity, validated orders, and validated capacity.
 9. **Build conditional candidates and exposure.** When requested, map confirmed rotation stages to eligible main-board candidates and produce a model-portfolio exposure plan using [references/rotation-candidates-and-positioning.md](references/rotation-candidates-and-positioning.md). Separate `initial`, `confirmation`, and `maximum` exposure; include entry, no-chase, reduction, and invalidation conditions.
 10. **Apply evidence gates and score caps.** Missing primary evidence must reduce the score. Theme heat cannot compensate for missing fundamentals or unverified commercial claims.
 11. **Challenge the thesis.** State the strongest bearish explanation, invalidation conditions, crowded-trade risk, event expectations already priced in, and data gaps.
 12. **Return timestamped output.** Separate facts, calculations, inferences, and unknowns. Show data-quality score before the stock score and cite primary evidence close to each material claim.
+13. **Stay short-term focused.** Return at most 3 priority candidates and 5 watch candidates. Do not append a long-term list.
+
+For reproducible execution, use `scripts/zhitu_client.py` for API access, `scripts/screen_main_board.py` for the market-data pre-screen, `scripts/sector_rotation.py` for point-in-time rotation stages, `scripts/short_term_signals.py` for launch/acceleration/limit structures, `scripts/evidence_gate.py` for primary-evidence caps, and `scripts/research_tracker.py` for outcome tracking. Do not replace their deterministic outputs with silently changed thresholds.
 
 ## Analysis modes
 
@@ -89,6 +97,10 @@ Use two stages:
 2. `Research validation`: primary-source evidence and fundamental scoring for the smaller survivor set.
 
 Before ranking stocks, show the mandatory market/global dashboard and a sector-rotation table with current leaders, newly strengthening groups, crowded/diverging groups, fading groups, and unconfirmed watch candidates. Show excluded symbols separately with reasons. Never publish a high-conviction list based only on price/volume or theme heat. If the batch is too large for primary-source verification, return a shortlist and mark every unverified name `pending research validation`.
+
+Split output only into `short-term priority`, `short-term watch`, `secondary 5-20-session continuation`, and `excluded`. Never create a long-term candidate section.
+
+Within the short-term output, keep `bottom_start`, `accelerating`, `limit_up`, and `consecutive_limit_up` separate. A stock may match several signals, but assign one primary label using the fixed precedence in [references/launch-and-limit-signals.md](references/launch-and-limit-signals.md).
 
 ### Rotation candidates and position planning
 
@@ -118,6 +130,7 @@ For daily review, compare the prior thesis with the close:
 - Do not call vendor dynamic PE `TTM` unless independently confirmed.
 - Do not infer causation from co-movement with an overseas index.
 - Do not treat capital flow, chip distribution, five-level quotes, limit-up pools, or technical indicators as proof of future returns or complete Level-2 data.
+- Do not present inferred `main-force` intent as fact. Use observable capital-behavior language and provide a competing explanation.
 - Do not describe planned capacity as commissioned capacity, a framework agreement as an order, an order as recognized revenue, or an industry TAM as company revenue exposure.
 - Avoid look-ahead bias. Use only evidence available before the prediction cutoff.
 - Never convert missing, permission-denied, stale, or API-error fields to zero. Keep the reason code and lower data quality.
@@ -131,5 +144,9 @@ For daily review, compare the prior thesis with the close:
 - Cache universe/ST lists daily; financials, profiles, holders, and disclosures by report/update date; realtime snapshots by vendor cadence.
 - Store historical bars separately from the latest snapshot. Record source time, fetch time, adjustment method, and missing fields.
 - Store an immutable raw response and response hash, then derive normalized tables. Monitor API schema and vendor upgrade-log changes with fixed regression samples.
+- Set `ZHITU_REQUESTS_PER_MINUTE` to the purchased plan ceiling or lower. The client defaults to 1000 and respects endpoint-specific cache cadence; do not use parallel processes to bypass the vendor limit.
+- Treat `scripts/screen_main_board.py` as a market-data pre-screen only. Complete primary-source fundamental validation before promoting any candidate to a research tier or model-position plan.
+- Record every time-bound signal before its outcome exists, including cutoff, price, objective, benchmark, ruleset version, and evidence gaps. Evaluate T+1/T+5/T+20 only from later stored sessions.
+- Default candidate selection and position planning to T+1 and T+5. Use T+20 only to evaluate secondary continuation, never to create a long-term recommendation.
 - Treat HTTP `401` as daily-quota exhaustion, `402` as an invalid token, `404` as a path/resource error, and `429` as rate limiting. Retry only `429`, network timeouts, and 5xx responses with bounded backoff; never log the token-bearing URL.
 - Cite Zhitu for market data and the original exchange/company/government source for business, filing, policy, order, and capacity claims.
