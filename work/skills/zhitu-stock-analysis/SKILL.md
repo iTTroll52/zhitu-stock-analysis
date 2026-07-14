@@ -1,6 +1,6 @@
 ---
 name: zhitu-stock-analysis
-description: Analyze or screen one or more eligible Shanghai/Shenzhen main-board A-shares with Zhitu Data Service APIs, primary disclosures, and global-market context. Use for realtime snapshots, batch candidate screening, limit-up opportunity research, review, fundamentals, industry position, evidence quality, overseas risk transmission, and transparent risk scoring with a user-provided Zhitu API token. Excludes ChiNext, STAR Market, ST/*ST, and other stocks outside the user's tradable main-board universe by default.
+description: Analyze or screen one or more eligible Shanghai/Shenzhen main-board A-shares with Zhitu Data Service APIs, primary disclosures, global-market context, sector-rotation positioning, conditional stock candidates, and model-portfolio position ranges. Use for realtime snapshots, batch candidate screening, limit-up opportunity research, review, fundamentals, industry position, evidence quality, overseas risk transmission, current sector-rotation stage, candidate reasons, staged entries, and invalidation-aware exposure planning with a user-provided Zhitu API token. Excludes ChiNext, STAR Market, ST/*ST, and other stocks outside the user's tradable main-board universe by default.
 ---
 
 # 智兔股票分析
@@ -20,7 +20,9 @@ Read these files before acting:
 1. [references/zhitu-api.md](references/zhitu-api.md) for endpoint selection, cadence, and limitations.
 2. [references/analysis-framework.md](references/analysis-framework.md) for scoring, evidence gates, and outputs.
 3. [references/data-quality-gates.md](references/data-quality-gates.md) before accepting API, financial, historical, or backtest data.
-4. [references/global-risk-overlay.md](references/global-risk-overlay.md) when assessing the market, sector, event, next-session, or swing outlook.
+4. [references/global-risk-overlay.md](references/global-risk-overlay.md) for every analysis; keep the block compact for long-horizon fundamental work but never omit the data cutoff, overseas session state, or transmission assessment.
+5. [references/sector-rotation.md](references/sector-rotation.md) for every single-stock analysis, batch screen, market review, or short-horizon outlook.
+6. [references/rotation-candidates-and-positioning.md](references/rotation-candidates-and-positioning.md) whenever the user requests stocks corresponding to a rotation, entry conditions, position size, an aggressive/balanced/conservative plan, or a trade-oriented shortlist.
 
 ## Hard tradability gate
 
@@ -52,13 +54,14 @@ Normalize symbols and confirm board/type with instrument metadata where possible
 2. **Apply the tradability gate.** Remove ineligible boards and ST/*ST before ranking.
 3. **Apply the data-quality gate.** Validate shape, fields, units, freshness, formulas, missing-value reasons, adjustment method, and point-in-time availability using [references/data-quality-gates.md](references/data-quality-gates.md). Stop scoring on hard errors or a score below 80.
 4. **Reconcile material data.** Compare realtime endpoint families within the same source-time window. Verify key financial values with an independent source and use the original filing to resolve differences above 5%.
-5. **Build market context.** Read indices, breadth, limit-up/down/broken-board pools, sector concentration, liquidity, and the current market regime.
-6. **Add the global overlay.** Assess US, Japanese, Korean, Hong Kong, commodity, FX, rate, overseas-policy, and geopolitical transmission using [references/global-risk-overlay.md](references/global-risk-overlay.md). Timestamp every observation.
+5. **Build the mandatory market and rotation pack.** For every analysis, report core-index direction, multi-period trend, total-market liquidity versus comparable windows, breadth, limit-up/down/broken-board structure, style, current market regime, and sector concentration. Classify sectors by rotation stage using [references/sector-rotation.md](references/sector-rotation.md); report which sectors are leading, strengthening, diverging, fading, or only candidates for observation.
+6. **Add the mandatory global overlay.** For every analysis, assess US, Japanese, Korean, Hong Kong, commodity, FX, rate, overseas-policy, and geopolitical transmission using [references/global-risk-overlay.md](references/global-risk-overlay.md). Timestamp every observation and identify whether each market is intraday, closed, or from the prior session.
 7. **Create a data-only pre-screen.** Use liquidity, relative strength, turnover, trend, limit-up structure, sector breadth, and risk flags only to narrow research candidates. Label it `pre-screen`, not a final recommendation.
 8. **Verify the business case.** For every surviving candidate, inspect filings, financial statements, official website disclosures, and investor-relations/research records. Quantify industry position, catalyst-related revenue share, earnings elasticity, validated orders, and validated capacity.
-9. **Apply evidence gates and score caps.** Missing primary evidence must reduce the score. Theme heat cannot compensate for missing fundamentals or unverified commercial claims.
-10. **Challenge the thesis.** State the strongest bearish explanation, invalidation conditions, crowded-trade risk, event expectations already priced in, and data gaps.
-11. **Return timestamped output.** Separate facts, calculations, inferences, and unknowns. Show data-quality score before the stock score and cite primary evidence close to each material claim.
+9. **Build conditional candidates and exposure.** When requested, map confirmed rotation stages to eligible main-board candidates and produce a model-portfolio exposure plan using [references/rotation-candidates-and-positioning.md](references/rotation-candidates-and-positioning.md). Separate `initial`, `confirmation`, and `maximum` exposure; include entry, no-chase, reduction, and invalidation conditions.
+10. **Apply evidence gates and score caps.** Missing primary evidence must reduce the score. Theme heat cannot compensate for missing fundamentals or unverified commercial claims.
+11. **Challenge the thesis.** State the strongest bearish explanation, invalidation conditions, crowded-trade risk, event expectations already priced in, and data gaps.
+12. **Return timestamped output.** Separate facts, calculations, inferences, and unknowns. Show data-quality score before the stock score and cite primary evidence close to each material claim.
 
 ## Analysis modes
 
@@ -69,13 +72,14 @@ Return:
 1. eligibility result;
 2. data cutoff, quality score, quality flags, sources, and adjustment method;
 3. price/liquidity snapshot and source/fetch timestamps;
-4. market, sector, and global-risk regime;
-5. fundamentals and industry position;
-6. revenue exposure, earnings elasticity, order validation, and capacity validation;
-7. evidence coverage table;
-8. technical/flow observations;
-9. bullish case, bearish case, invalidation conditions, and missing evidence;
-10. transparent component scores, caps applied, and final research tier.
+4. mandatory market/global dashboard: core indices, liquidity, breadth, style, overseas session state, rates/FX/commodities, and transmission to A shares;
+5. sector-rotation position: the target sector's stage, current leaders, strengthening sectors, fading sectors, and evidence against the classification;
+6. fundamentals and industry position;
+7. revenue exposure, earnings elasticity, order validation, and capacity validation;
+8. evidence coverage table;
+9. technical/flow observations;
+10. bullish case, bearish case, invalidation conditions, and missing evidence;
+11. transparent component scores, caps applied, and final research tier.
 
 ### Batch screen
 
@@ -84,7 +88,19 @@ Use two stages:
 1. `Market-data pre-screen`: eligible universe, liquidity, relative strength, sector breadth, limit-up/down structure, and abnormal-risk filters.
 2. `Research validation`: primary-source evidence and fundamental scoring for the smaller survivor set.
 
-Show excluded symbols separately with reasons. Never publish a high-conviction list based only on price/volume or theme heat. If the batch is too large for primary-source verification, return a shortlist and mark every unverified name `pending research validation`.
+Before ranking stocks, show the mandatory market/global dashboard and a sector-rotation table with current leaders, newly strengthening groups, crowded/diverging groups, fading groups, and unconfirmed watch candidates. Show excluded symbols separately with reasons. Never publish a high-conviction list based only on price/volume or theme heat. If the batch is too large for primary-source verification, return a shortlist and mark every unverified name `pending research validation`.
+
+### Rotation candidates and position planning
+
+When the user asks which stocks correspond to the current rotation or how much exposure to use:
+
+1. re-run the current instrument/ST gate and data-quality gate;
+2. classify the market and each sector before naming stocks;
+3. include only candidates with a verifiable role such as leader, liquid bellwether, fundamental confirmation, or newly strengthening adjacent-chain candidate;
+4. show primary reasons and counter-evidence, not just theme labels;
+5. express exposure as model-portfolio percentages, never as certainty or a substitute for the user's suitability assessment;
+6. provide initial, confirmation, and maximum ranges plus staged-entry and invalidation rules;
+7. lower exposure or return only a watchlist when live snapshots, current ST data, comparable intraday windows, or primary evidence are missing.
 
 ### Review / 复盘
 
@@ -92,6 +108,7 @@ For daily review, compare the prior thesis with the close:
 
 - which sectors supplied limit-ups, down-limits, and broken boards;
 - whether breadth expanded or narrowed and whether leaders were one-day rotations or showed multi-day confirmation;
+- where each material sector moved in the rotation sequence and whether the prior `starting/strengthening/accelerating/diverging/fading` label was confirmed;
 - whether volume, sector follow-through, filings, orders, capacity, or overseas events confirmed the thesis;
 - which signals were false positives and why;
 - whether score thresholds or features need backtest review, without changing rules merely to fit one day.
