@@ -1,6 +1,6 @@
 ---
 name: zhitu-stock-analysis
-description: Screen and analyze eligible Shanghai/Shenzhen main-board A-shares for short-term trading research with Zhitu Data Service APIs, market sentiment, observable capital-behavior proxies, sector rotation, primary disclosures, global-market context, conditional candidates, and staged model-portfolio exposure. Use for intraday, next-session, 2-5-session, bottom-launch, potential-acceleration, first-limit-up, consecutive-limit-up, batch screening, daily review, catalyst and earnings validation, rotation candidates, entry conditions, and invalidation planning. Supports 5-20-session continuation checks only as secondary confirmation; does not provide long-term stock picks, target prices, or holding recommendations. Excludes ChiNext, STAR Market, ST/*ST, and other stocks outside the user's tradable main-board universe by default.
+description: Screen and analyze eligible Shanghai/Shenzhen main-board A-shares for short-term trading research with Zhitu Data Service APIs, market sentiment, observable capital-behavior proxies, sector rotation, primary disclosures, global-market context, conditional candidates, staged model-portfolio exposure, and self-contained HTML reports. Use for intraday, next-session, 2-5-session, bottom-launch, potential-acceleration, first-limit-up, consecutive-limit-up, batch screening, daily review, catalyst and earnings validation, rotation candidates, entry conditions, invalidation planning, or browser-viewable and shareable reports. Supports 5-20-session continuation checks only as secondary confirmation; does not provide long-term stock picks, target prices, or holding recommendations. Excludes ChiNext, STAR Market, ST/*ST, and other stocks outside the user's tradable main-board universe by default.
 ---
 
 # 智兔股票分析
@@ -26,6 +26,7 @@ Read these files before acting:
 7. [references/automation.md](references/automation.md) before running the API client, deterministic pre-screen, rotation classifier, or T+1/T+5/T+20 evaluation ledger.
 8. [references/short-term-selection.md](references/short-term-selection.md) before every screen, candidate list, position plan, or daily review.
 9. [references/launch-and-limit-signals.md](references/launch-and-limit-signals.md) whenever the user requests bottom-launch, acceleration, likely limit-up, first-board, or consecutive-board candidates.
+10. [references/html-report.md](references/html-report.md) whenever the user requests a browser-viewable, offline, printable, or shareable report.
 
 ## Hard tradability gate
 
@@ -68,8 +69,9 @@ Normalize symbols and confirm board/type with instrument metadata where possible
 11. **Challenge the thesis.** State the strongest bearish explanation, invalidation conditions, crowded-trade risk, event expectations already priced in, and data gaps.
 12. **Return timestamped output.** Separate facts, calculations, inferences, and unknowns. Show data-quality score before the stock score and cite primary evidence close to each material claim.
 13. **Stay short-term focused.** Return at most 3 priority candidates and 5 watch candidates. Do not append a long-term list.
+14. **Render HTML when requested.** Save the normalized, timestamped analysis as JSON and run `python scripts/generate_html_report.py analysis.json --output report.html`. Keep the HTML self-contained and remove tokens, restricted raw payloads, and personal information before sharing.
 
-For reproducible execution, use `scripts/zhitu_client.py` for API access, `scripts/screen_main_board.py` for the market-data pre-screen, `scripts/sector_rotation.py` for point-in-time rotation stages, `scripts/short_term_signals.py` for launch/acceleration/limit structures, `scripts/evidence_gate.py` for primary-evidence caps, and `scripts/research_tracker.py` for outcome tracking. Do not replace their deterministic outputs with silently changed thresholds.
+For reproducible execution, use `scripts/zhitu_client.py` for API access, `scripts/screen_main_board.py` for the market-data pre-screen, `scripts/sector_rotation.py` for point-in-time rotation stages, `scripts/short_term_signals.py` for launch/acceleration/limit structures, `scripts/evidence_gate.py` for primary-evidence caps, `scripts/research_tracker.py` for outcome tracking, and `scripts/generate_html_report.py` for portable browser reports. Do not replace their deterministic outputs with silently changed thresholds.
 
 ## Analysis modes
 
