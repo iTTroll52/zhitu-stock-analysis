@@ -279,13 +279,29 @@ def analyze_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
     primary = matched[0] if matched else None
     evidence_score = number(candidate.get("evidence_score")) or 0
     business_support = str(candidate.get("business_support", "unverified")).lower()
+    validation_status = str(candidate.get("strategy_validation_status", "experimental")).lower()
+    validated = validation_status in {"validated", "out_of_sample_validated"}
     hostile = features["market_regime"] in HOSTILE_MARKETS
-    priority_allowed = bool(primary and evidence_score >= 50 and business_support in {"confirmed", "partial"} and not hostile)
+    priority_allowed = bool(
+        primary
+        and evidence_score >= 50
+        and business_support in {"confirmed", "partial"}
+        and not hostile
+        and validated
+    )
     all_no_chase = list(limit_up.get("no_chase_flags", []))
     if hostile:
         all_no_chase.append(f"hostile market regime: {features['market_regime']}")
     if features["volume_ratio"] is not None and features["volume_ratio"] > 3.5:
         all_no_chase.append("volume expansion may indicate climax rather than launch")
+    if primary and not validated:
+        all_no_chase.append(f"ruleset is not out-of-sample validated: {validation_status}")
+    if priority_allowed and not all_no_chase:
+        research_tier = "priority"
+    elif primary and not validated:
+        research_tier = "experimental_watch"
+    else:
+        research_tier = "watch_only"
     return {
         "code": candidate.get("code"),
         "name": candidate.get("name"),
@@ -293,7 +309,8 @@ def analyze_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
         "eligible_for_signals": True,
         "primary_signal": primary,
         "matched_signals": matched,
-        "research_tier": "priority" if priority_allowed and not all_no_chase else "watch_only",
+        "strategy_validation_status": validation_status,
+        "research_tier": research_tier,
         "signal_score": signals[primary]["score"] if primary else 0,
         "signals": signals,
         "features": features,
@@ -318,6 +335,9 @@ def analyze(payload: dict[str, Any], top: int = 5) -> dict[str, Any]:
             continue
         candidate = {**raw}
         candidate.setdefault("market_regime", market.get("regime", "unknown"))
+        validation = payload.get("strategy_validation", {})
+        if isinstance(validation, dict):
+            candidate.setdefault("strategy_validation_status", validation.get("status", "experimental"))
         results.append(analyze_candidate(candidate))
     buckets: dict[str, list[dict[str, Any]]] = {name: [] for name in SIGNAL_PRIORITY}
     excluded = []
@@ -337,7 +357,7 @@ def analyze(payload: dict[str, Any], top: int = 5) -> dict[str, Any]:
         "buckets": buckets,
         "excluded": excluded,
         "rules": {
-            "priority_requires": "quality>=80, evidence>=50, business support, non-hostile market, no no-chase flag",
+            "priority_requires": "quality>=80, evidence>=50, business support, non-hostile market, out-of-sample-validated ruleset, no no-chase flag",
             "limit_up_requires": "observed high plus exact exchange-rule limit-up price",
             "main_force_language": "observable capital-behavior proxy only",
         },

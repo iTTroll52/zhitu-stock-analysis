@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import urlparse
@@ -27,6 +28,13 @@ STAGE_LABELS = {
     "rebounding": "反弹",
 }
 
+DEMO_MARKERS = re.compile(
+    r"演示数据|模拟数据|假数据|虚构数据|占位数据|"
+    r"\b(?:mock|demo|synthetic|placeholder|fake data|test data)\b",
+    re.IGNORECASE,
+)
+VALID_STOCK_CODE = re.compile(r"^\d{6}(?:\.(?:SH|SZ))?$", re.IGNORECASE)
+
 
 def esc(value: Any) -> str:
     return html.escape("" if value is None else str(value), quote=True)
@@ -42,6 +50,84 @@ def safe_url(value: Any) -> str:
     text = str(value or "").strip()
     parsed = urlparse(text)
     return text if parsed.scheme in {"http", "https"} else ""
+
+
+def _find_demo_markers(value: Any, path: str = "root") -> list[str]:
+    hits: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "analysis_mode":
+                continue
+            hits.extend(_find_demo_markers(child, f"{path}.{key}"))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            hits.extend(_find_demo_markers(child, f"{path}[{index}]"))
+    elif isinstance(value, str) and DEMO_MARKERS.search(value):
+        hits.append(path)
+    return hits
+
+
+def validate_analysis_payload(data: dict[str, Any], allow_demo: bool = False) -> str:
+    """Enforce production/demo separation before an authoritative report is written."""
+    mode = str(data.get("analysis_mode", "production")).strip().lower()
+    if mode not in {"production", "demo", "test"}:
+        raise ValueError("analysis_mode must be production, demo, or test")
+    if mode in {"demo", "test"}:
+        if not allow_demo:
+            raise ValueError("demo/test payload rejected; pass --allow-demo only for an explicitly labeled non-trading artifact")
+        return mode
+
+    marker_paths = _find_demo_markers(data)
+    if marker_paths:
+        sample = ", ".join(marker_paths[:5])
+        raise ValueError(f"production payload contains demo/simulated/placeholder markers at: {sample}")
+
+    candidates = [item for item in as_list(data.get("candidates")) if isinstance(item, dict)]
+    if not candidates:
+        return mode
+
+    quality = data.get("data_quality") if isinstance(data.get("data_quality"), dict) else {}
+    try:
+        quality_score = float(quality.get("score"))
+    except (TypeError, ValueError):
+        raise ValueError("production candidate report requires a numeric data_quality.score") from None
+    if quality_score < 80:
+        raise ValueError("production candidate report rejected because data_quality.score is below 80")
+
+    market_regime = data.get("market_regime") if isinstance(data.get("market_regime"), dict) else {}
+    if not market_regime or market_regime.get("decision_allowed") is not True:
+        raise ValueError("production candidate report requires an allowed deterministic market_regime decision")
+    posture = str(market_regime.get("posture", "")).lower()
+    if posture in {"cash", "cash_preferred", "insufficient_data"}:
+        raise ValueError(f"production candidate report rejected by market posture: {posture}")
+
+    validation = data.get("strategy_validation") if isinstance(data.get("strategy_validation"), dict) else {}
+    validation_status = str(validation.get("status", "experimental")).lower()
+    validated = validation_status in {"validated", "out_of_sample_validated"}
+    if not validated:
+        invalid_tiers = []
+        for item in candidates:
+            tier = str(item.get("research_tier", item.get("tier", ""))).lower()
+            if not any(label in tier for label in ("experimental", "watch", "观察")):
+                invalid_tiers.append(str(item.get("code", "")))
+        if invalid_tiers:
+            raise ValueError(
+                "unvalidated ruleset may only produce experimental/watch candidates; invalid: "
+                + ", ".join(invalid_tiers[:5])
+            )
+
+    cutoff = str(data.get("data_cutoff", "")).strip()
+    if not cutoff or cutoff in {"未提供", "待确认", "unknown"}:
+        raise ValueError("production candidate report requires an explicit data_cutoff with timezone")
+
+    invalid_codes = [str(item.get("code", "")) for item in candidates if not VALID_STOCK_CODE.fullmatch(str(item.get("code", "")).strip())]
+    if invalid_codes:
+        raise ValueError(f"production candidate report contains invalid or placeholder stock codes: {', '.join(invalid_codes[:5])}")
+
+    sources = [item for item in as_list(data.get("sources")) if isinstance(item, dict)]
+    if not any(safe_url(item.get("url")) for item in sources):
+        raise ValueError("production candidate report requires at least one valid HTTP(S) source")
+    return mode
 
 
 def tone_class(value: Any) -> str:
@@ -120,6 +206,48 @@ def render_rotation(rotation: dict[str, Any]) -> str:
         <div><span>退潮</span>{fading or '<em>待确认</em>'}</div>
       </div>
     """
+
+
+def render_market_regime(regime: dict[str, Any]) -> str:
+    if not regime:
+        return '<div class="empty">未提供确定性市场状态与空仓判断。</div>'
+    reasons = render_list(as_list(regime.get("reasons")), "没有提供支持理由。")
+    counter = render_list(as_list(regime.get("counter_evidence")), "没有提供反证。")
+    return f"""
+      <div class="summary-grid">
+        <div class="verdict"><span class="eyebrow">市场状态 / 操作姿态</span>
+          <strong>{esc(regime.get('regime', 'unknown'))} · {esc(regime.get('posture', 'insufficient_data'))}</strong>
+          <p>研究仓位区间：{esc(regime.get('research_exposure_band', '—'))}；风险状态分：{esc(regime.get('risk_on_score', '—'))}</p>
+        </div>
+        <div class="flag-box"><span class="eyebrow">规则发布状态</span>
+          <strong>{esc(regime.get('publication_status', '未提供'))}</strong><small>{esc(regime.get('strategy_validation_status', 'unvalidated'))}</small>
+        </div>
+      </div>
+      <div class="thesis-grid" style="margin-top:18px">
+        <article class="thesis bull"><h3>支持</h3><ul>{reasons}</ul></article>
+        <article class="thesis bear"><h3>反证</h3><ul>{counter}</ul></article>
+      </div>
+    """
+
+
+def render_event_reaction(event: dict[str, Any]) -> str:
+    if not event or str(event.get("status", "")).lower() == "not_available":
+        return '<div class="empty">没有真实事件或注意力观察；未启用热点与价格背离分析。</div>'
+    rows = []
+    for label, key in (
+        ("注意力", "attention"),
+        ("事实可信度", "credibility"),
+        ("市场确认", "market_confirmation"),
+        ("拥挤度", "crowding"),
+    ):
+        value = event.get(key, "—")
+        rows.append(f'<article class="tape-item"><div class="tape-name">{label}</div><div class="tape-value">{esc(value)}</div></article>')
+    return (
+        f'<div class="tape">{"".join(rows)}</div>'
+        f'<div class="flag-box" style="margin-top:18px"><span class="eyebrow">事件分类</span>'
+        f'<strong>{esc(event.get("classification", "mixed_or_unknown"))}</strong>'
+        f'<p>{esc(event.get("summary", "未提供事件价格反应摘要。"))}</p></div>'
+    )
 
 
 def render_signals(signals: list[dict[str, Any]]) -> str:
@@ -215,11 +343,16 @@ def build_html(data: dict[str, Any]) -> str:
     quality = data.get("data_quality") if isinstance(data.get("data_quality"), dict) else {}
     summary = data.get("summary") if isinstance(data.get("summary"), dict) else {}
     rotation = data.get("rotation") if isinstance(data.get("rotation"), dict) else {}
+    market_regime = data.get("market_regime") if isinstance(data.get("market_regime"), dict) else {}
+    strategy_validation = data.get("strategy_validation") if isinstance(data.get("strategy_validation"), dict) else {}
+    event_reaction = data.get("event_reaction") if isinstance(data.get("event_reaction"), dict) else {}
     flags = as_list(quality.get("flags"))
     title = esc(data.get("title", "A股短线研究报告"))
     subtitle = esc(data.get("subtitle", "智兔市场数据 · 一手证据闸门 · 条件式候选"))
     candidates = [x for x in as_list(data.get("candidates")) if isinstance(x, dict)]
     report_json = json.dumps({"candidate_count": len(candidates)}, ensure_ascii=False)
+    mode = str(data.get("analysis_mode", "production")).strip().lower()
+    demo_banner = '<div class="demo-banner">演示 / 测试数据 · 非真实行情 · 不得用于交易</div>' if mode in {"demo", "test"} else ""
     return f'''<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -236,6 +369,7 @@ def build_html(data: dict[str, Any]) -> str:
     h1,h2,h3,p {{ margin-top:0; }} h1,h2 {{ font-family:Georgia,"Noto Serif CJK SC","Songti SC",serif; font-weight:700; text-wrap:balance; }}
     p {{ text-wrap:pretty; }} button,a {{ font:inherit; }} a {{ color:inherit; text-underline-offset:3px; }}
     .topbar {{ position:sticky; top:0; z-index:20; display:flex; justify-content:space-between; align-items:center; padding:10px max(20px,calc((100vw - 1240px)/2)); border-bottom:1px solid color-mix(in oklch,var(--line) 72%,transparent); backdrop-filter:blur(18px); background:color-mix(in oklch,var(--paper) 84%,transparent); }}
+    .demo-banner {{ position:sticky; top:61px; z-index:19; padding:8px 16px; background:#ffd84d; color:#251f08; text-align:center; font-weight:900; letter-spacing:.04em; border-bottom:1px solid #8d7414; }}
     .brand {{ font-family:Georgia,"Noto Serif CJK SC",serif; font-weight:700; }} .top-actions {{ display:flex; gap:8px; }}
     .icon-button,.filter {{ min-height:40px; padding:8px 13px; border:1px solid var(--line); background:var(--sheet); color:var(--ink); cursor:pointer; }} .icon-button:hover,.filter:hover,.filter.active {{ border-color:var(--ink); }}
     main {{ width:min(1240px,calc(100% - 32px)); margin:36px auto 64px; }}
@@ -266,13 +400,16 @@ def build_html(data: dict[str, Any]) -> str:
 </head>
 <body>
   <header class="topbar"><div class="brand">ZHITU · SHORT-HORIZON RESEARCH</div><div class="top-actions"><button class="icon-button" id="theme">明暗</button><button class="icon-button" onclick="window.print()">打印 / PDF</button></div></header>
+  {demo_banner}
   <main>
     <section class="hero" id="top"><div><span class="kicker">Research report · 非收益承诺</span><h1>{title}</h1><p>{subtitle}</p></div><div class="meta">
       <div><span>数据截止</span><strong>{esc(data.get('data_cutoff','未提供'))}</strong></div>
       <div><span>生成时间</span><strong>{esc(data.get('generated_at','未提供'))}</strong></div>
-      <div><span>市场状态</span><strong>{esc(data.get('market_session','待确认'))}</strong></div>
+      <div><span>交易时段</span><strong>{esc(data.get('market_session','待确认'))}</strong></div>
+      <div><span>市场状态</span><strong>{esc(market_regime.get('regime','待确认'))}</strong></div>
+      <div><span>参与/空仓</span><strong>{esc(market_regime.get('posture','待确认'))}</strong></div>
       <div><span>数据质量</span><strong class="quality">{esc(quality.get('score','—'))}</strong></div>
-      <div><span>研究层级</span><strong>{esc(data.get('research_tier',summary.get('tier','观察级')))}</strong></div>
+      <div><span>规则状态</span><strong>{esc(strategy_validation.get('status','unvalidated'))}</strong></div>
     </div></section>
 
     <section class="section"><div class="section-head"><div><span class="eyebrow">01 · MARKET TAPE</span><h2>大盘与海外传导</h2></div><p>同一分析必须标明交易时段与时间戳，避免把昨夜收盘和今日盘中混在一起。</p></div>
@@ -280,25 +417,29 @@ def build_html(data: dict[str, Any]) -> str:
       <div style="height:12px"></div><div class="tape">{render_market([x for x in as_list(data.get('global')) if isinstance(x,dict)],'未提供海外市场、汇率、利率或商品数据。')}</div>
     </section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">02 · EXECUTIVE VIEW</span><h2>一句话结论与质量边界</h2></div><p>{esc(summary.get('confidence','信号只代表研究优先级，不代表上涨概率。'))}</p></div>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">02 · REGIME & CASH</span><h2>市场状态与参与、等待、空仓</h2></div><p>空仓是正式结果；市场、数据或规则闸门未通过时不为填满名单降低标准。</p></div>{render_market_regime(market_regime)}</section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">03 · EXECUTIVE VIEW</span><h2>一句话结论与质量边界</h2></div><p>{esc(summary.get('confidence','信号只代表研究优先级，不代表上涨概率。'))}</p></div>
       <div class="summary-grid"><div class="verdict"><strong>{esc(summary.get('verdict','当前不形成高置信度结论'))}</strong><p>{esc(summary.get('key_reason','请补充实时行情、轮动和一手证据。'))}</p></div>
       <div class="flag-box"><span class="eyebrow">数据质量标记</span><div class="flags">{pills(flags) or '<span class="pill">无明确标记</span>'}</div></div></div>
     </section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">03 · ROTATION</span><h2>板块轮动：现在轮到哪里</h2></div><p>阶段判断必须同时给出支持证据与反证，不把单日冲高直接称为主升。</p></div>{render_rotation(rotation)}</section>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">04 · ROTATION</span><h2>板块轮动：现在轮到哪里</h2></div><p>阶段判断必须同时给出支持证据与反证，不把单日冲高直接称为主升。</p></div>{render_rotation(rotation)}</section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">04 · SIGNAL MAP</span><h2>底部启动、加速、涨停与连板</h2></div><p>四类信号分开统计；同一标的只指定一个主标签，避免重复计数夸大强度。</p></div><div class="signal-grid">{render_signals([x for x in as_list(data.get('signals')) if isinstance(x,dict)])}</div></section>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">05 · SIGNAL MAP</span><h2>底部启动、加速、涨停与连板</h2></div><p>四类信号分开统计；同一标的只指定一个主标签，避免重复计数夸大强度。</p></div><div class="signal-grid">{render_signals([x for x in as_list(data.get('signals')) if isinstance(x,dict)])}</div></section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">05 · CANDIDATES</span><h2>条件式候选与模型仓位</h2></div><p>仅展示沪深主板且非 ST 的候选；仓位是研究用模型区间，必须与确认条件和失效条件配套。</p></div>{render_candidates(candidates)}</section>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">06 · EVENT REACTION</span><h2>事件、注意力与价格背离</h2></div><p>注意力、事实可信度、资金确认和拥挤度分别展示；没有真实数据时明确关闭。</p></div>{render_event_reaction(event_reaction)}</section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">06 · EVIDENCE</span><h2>公告、财报、官网与调研证据</h2></div><p>缺少订单、产能、收入占比或一手资料时必须降分或封顶，题材热度不能补足证据缺口。</p></div>{render_evidence([x for x in as_list(data.get('evidence')) if isinstance(x,dict)])}</section>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">07 · CANDIDATES</span><h2>条件式候选与模型仓位</h2></div><p>仅展示沪深主板且非 ST 的候选；仓位是研究用模型区间，必须与确认条件和失效条件配套。</p></div>{render_candidates(candidates)}</section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">07 · TWO-SIDED VIEW</span><h2>正反逻辑与失效条件</h2></div><p>把最强反方解释与风险前置，避免把分析写成只支持买入的单向叙事。</p></div>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">08 · EVIDENCE</span><h2>公告、财报、官网与调研证据</h2></div><p>缺少订单、产能、收入占比或一手资料时必须降分或封顶，题材热度不能补足证据缺口。</p></div>{render_evidence([x for x in as_list(data.get('evidence')) if isinstance(x,dict)])}</section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">09 · TWO-SIDED VIEW</span><h2>正反逻辑与失效条件</h2></div><p>把最强反方解释与风险前置，避免把分析写成只支持买入的单向叙事。</p></div>
       <div class="thesis-grid"><article class="thesis bull"><h3>支持逻辑</h3><ul>{render_list(as_list(data.get('bull_case')),'未提供可验证的支持逻辑。')}</ul></article><article class="thesis bear"><h3>反方逻辑</h3><ul>{render_list(as_list(data.get('bear_case')),'未提供有力度的反方解释。')}</ul></article></div>
       <div class="flag-box" style="margin-top:18px"><h3>风险与失效</h3><ul class="risk-list">{render_list(as_list(data.get('risks',data.get('invalidation'))),'未提供明确失效条件。')}</ul></div>
     </section>
 
-    <section class="section"><div class="section-head"><div><span class="eyebrow">08 · SOURCES</span><h2>来源与可追溯性</h2></div><p>市场数据注明智兔返回时间；公司与政策事实优先链接交易所、公司、政府或监管原文。</p></div>{render_sources([x for x in as_list(data.get('sources')) if isinstance(x,dict)])}</section>
+    <section class="section"><div class="section-head"><div><span class="eyebrow">10 · SOURCES</span><h2>来源与可追溯性</h2></div><p>市场数据注明智兔返回时间；公司与政策事实优先链接交易所、公司、政府或监管原文。</p></div>{render_sources([x for x in as_list(data.get('sources')) if isinstance(x,dict)])}</section>
     <footer class="disclaimer">{esc(data.get('disclaimer','本报告仅用于数据研究、软件开发和投资教育，不构成投资建议、收益保证或代客决策。市场数据可能延迟、缺失或存在供应商口径差异。'))}</footer>
   </main>
   <script type="application/json" id="report-meta">{esc(report_json)}</script>
@@ -320,10 +461,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a self-contained Zhitu stock-analysis HTML report.")
     parser.add_argument("input", type=Path, help="Normalized analysis JSON file")
     parser.add_argument("--output", "-o", type=Path, required=True, help="Destination .html file")
+    parser.add_argument("--allow-demo", action="store_true", help="Allow an explicitly labeled demo/test payload")
     args = parser.parse_args()
     data = json.loads(args.input.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
         raise SystemExit("Input JSON root must be an object.")
+    try:
+        validate_analysis_payload(data, allow_demo=args.allow_demo)
+    except ValueError as exc:
+        raise SystemExit(f"Truthfulness gate failed: {exc}") from None
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(build_html(data) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps({"output": str(args.output.resolve()), "bytes": args.output.stat().st_size}, ensure_ascii=False))

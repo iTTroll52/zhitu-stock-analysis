@@ -43,8 +43,11 @@
 - 行业地位、收入占比、订单和产能验证；
 - 美股、日本、韩国、港股、汇率、利率、商品、海外政策及地缘风险分析；
 - 每次分析固定输出大盘、流动性、市场宽度及海外交易时段详情；
+- 使用确定性规则输出全面牛/结构牛/震荡/过渡/结构熊/全面熊/危机，以及参与、等待或空仓；
+- 将注意力、事实可信度、价格确认和拥挤度分开，识别利好兑现、利空落地和热度价格背离；
 - 将“次日涨停”“次日上涨”“五日超额收益”作为不同研究目标；
-- 使用 SQLite 账本记录预测截点，并自动复盘 T+1/T+5/T+20；
+- 使用 SQLite 账本按目标和规则版本记录预测截点，并自动复盘 T+1/T+5/T+20；
+- 区分实验、影子、已验证和暂停规则，未完成样本外验证的信号只能进入实验观察；
 - 对公告、财报、官网、调研、收入、订单和产能执行可审计证据封顶；
 - 输出透明评分、证据缺口、反方观点和失效条件；
 - 将完整分析导出为可离线打开、打印 PDF、直接分享的自包含 HTML 报告。
@@ -118,6 +121,9 @@ python .\work\skills\zhitu-stock-analysis\scripts\self_check.py
 # 指定代码的沪深主板市场数据预筛
 python .\work\skills\zhitu-stock-analysis\scripts\screen_main_board.py --codes 600000 000001 --top 20 --output screen.json
 
+# 用同一截点的指数、宽度、成交和涨跌停结构判断参与/等待/空仓
+python .\work\skills\zhitu-stock-analysis\scripts\market_regime.py market.json --output market-regime.json
+
 # 用同一时点的历史快照判断板块阶段
 python .\work\skills\zhitu-stock-analysis\scripts\sector_rotation.py snapshots.json --output rotation.json
 
@@ -135,12 +141,14 @@ python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db resea
 python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db research.sqlite3 record signals.json
 python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db research.sqlite3 snapshot closes.json
 python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db research.sqlite3 evaluate
-python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db research.sqlite3 report
+python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db research.sqlite3 report --min-sample 30
 ```
 
 市场数据预筛分只表示研究优先级，不包含公告、订单、产能等基本面验证，不能解释为上涨概率。全市场模式使用 `/hs/public/realall`，该接口按智兔当前文档仅向包年版和至尊版开放，并限制每分钟一次。
 
 HTML 报告固定展示数据截止时间、质量分、大盘与海外、板块轮动、四类短线信号、条件式候选及模型仓位、证据覆盖、正反逻辑、失效条件和来源。报告不依赖外部 CDN，双击即可打开，也可以用浏览器打印为 PDF。输入字段见 `references/html-report.md`。
+
+正式分析严禁使用模拟、演示、测试、占位或模型编造数据。生产模式包含候选时，HTML 生成器会强制检查质量分不低于 80、明确的数据截止时间、真实六位代码和有效来源；缺少真实数据时拒绝生成评分、排名和仓位报告。演示数据只能显式设置 `analysis_mode: demo` 并传入 `--allow-demo`，生成页面会固定显示醒目警告。
 
 ### 项目结构
 
@@ -299,6 +307,7 @@ python .\work\skills\zhitu-stock-analysis\scripts\data_quality.py quote quote.js
 ```powershell
 python .\work\skills\zhitu-stock-analysis\scripts\self_check.py
 python .\work\skills\zhitu-stock-analysis\scripts\screen_main_board.py --codes 600000 000001 --top 20 --output screen.json
+python .\work\skills\zhitu-stock-analysis\scripts\market_regime.py market.json --output market-regime.json
 python .\work\skills\zhitu-stock-analysis\scripts\sector_rotation.py snapshots.json --output rotation.json
 python .\work\skills\zhitu-stock-analysis\scripts\evidence_gate.py evidence.json --output evidence-report.json
 python .\work\skills\zhitu-stock-analysis\scripts\generate_html_report.py analysis.json --output outputs\stock-report.html
@@ -306,6 +315,8 @@ python .\work\skills\zhitu-stock-analysis\scripts\research_tracker.py --db resea
 ```
 
 The HTML report includes the data cutoff, quality score, domestic and global market context, sector rotation, four short-term signal buckets, conditional candidates and model exposure, evidence coverage, two-sided thesis, invalidation conditions, and sources. It has no CDN dependency and opens directly in a browser.
+
+Production analysis must never use simulated, demo, test, placeholder, or model-invented data. Candidate reports require a quality score of at least 80, an explicit cutoff, real six-digit symbols, and a valid source. Demo payloads require both `analysis_mode: demo` and `--allow-demo`, and the rendered page carries a permanent non-trading warning.
 
 The market-data pre-screen score is a research-priority signal, not an appreciation probability. Full-market mode uses `/hs/public/realall`, which the current vendor documentation limits to annual and premium plans at one request per minute.
 

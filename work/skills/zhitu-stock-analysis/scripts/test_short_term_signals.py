@@ -31,6 +31,7 @@ def base_candidate(closes: list[float]) -> dict[str, object]:
         "quality_score": 95,
         "evidence_score": 65,
         "business_support": "confirmed",
+        "strategy_validation_status": "out_of_sample_validated",
         "bars": bars_from_closes(closes),
     }
 
@@ -86,6 +87,18 @@ class ShortTermSignalTests(unittest.TestCase):
         result = analyze_candidate(candidate)
         self.assertEqual(result["research_tier"], "watch_only")
         self.assertTrue(any("one-word" in flag for flag in result["no_chase_flags"]))
+
+    def test_unvalidated_signal_is_experimental_watch(self) -> None:
+        candidate = base_candidate([
+            12, 11.5, 11, 10.5, 10, 9.6, 9.3, 9.1, 9.0, 9.05,
+            9.1, 9.15, 9.2, 9.25, 9.3, 9.35, 9.4, 9.5, 9.6, 9.7,
+        ])
+        candidate["strategy_validation_status"] = "experimental"
+        candidate["sector_stage"] = "starting"
+        candidate["quote"] = {"p": 9.9, "yc": 9.7, "o": 9.65, "h": 9.95, "l": 9.6, "pc": 2.06, "hs": 3, "lb": 1.8, "cje": 200_000_000}
+        result = analyze_candidate(candidate)
+        self.assertEqual(result["research_tier"], "experimental_watch")
+        self.assertTrue(any("not out-of-sample validated" in flag for flag in result["no_chase_flags"]))
 
     def test_insufficient_history_is_excluded(self) -> None:
         candidate = base_candidate([10, 10.1, 10.2])

@@ -171,6 +171,25 @@ class TrackerTests(unittest.TestCase):
         groups = report(connection)["groups"]
         self.assertEqual(len(groups), 1)
         self.assertEqual(groups[0]["sample_size"], 1)
+        self.assertEqual(groups[0]["ruleset_version"], "2.0.0")
+        self.assertEqual(groups[0]["sample_status"], "insufficient_sample")
+
+    def test_report_does_not_merge_ruleset_versions(self) -> None:
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        from research_tracker import SCHEMA
+
+        connection.executescript(SCHEMA)
+        for version, code in (("2.0.0", "600010"), ("2.1.0", "600011")):
+            record_signals(connection, [{
+                "id": f"s-{version}", "code": code, "signal_date": "2026-07-01",
+                "cutoff_time": "2026-07-01T15:10:00+08:00", "signal_price": 10,
+                "objective": "t1_positive", "ruleset_version": version,
+            }])
+            record_snapshots(connection, [{"trade_date": "2026-07-02", "code": code, "close": 10.2}])
+        evaluate(connection)
+        groups = report(connection)["groups"]
+        self.assertEqual({group["ruleset_version"] for group in groups}, {"2.0.0", "2.1.0"})
 
     def test_limit_up_requires_observed_high_and_exact_limit_price(self) -> None:
         connection = sqlite3.connect(":memory:")

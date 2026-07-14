@@ -1,4 +1,4 @@
 interface:
   display_name: "智兔短线股票分析"
-  short_description: "智兔主板短线选股、轮动、证据验证、仓位规划与HTML报告生成"
-  default_prompt: "Use $zhitu-stock-analysis to screen eligible main-board A-shares and produce a timestamped, shareable HTML research report."
+  short_description: "主板短线市场状态、轮动、信号验证、空仓判断与HTML报告"
+  default_prompt: "Use $zhitu-stock-analysis to assess the current A-share market regime, decide participate/wait/cash, screen eligible main-board candidates, and return validation-aware evidence and risk conditions."

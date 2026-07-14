@@ -10,7 +10,7 @@ class SkillFocusTests(unittest.TestCase):
     def test_skill_is_short_term_first(self) -> None:
         root = Path(__file__).resolve().parent.parent
         skill = (root / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("short-term trading research", skill)
+        self.assertIn("short-term research", skill)
         self.assertIn("Do not produce long-term picks", skill)
         self.assertNotIn("long-horizon fundamental work", skill)
         self.assertNotIn("swing, or fundamental research", skill)
