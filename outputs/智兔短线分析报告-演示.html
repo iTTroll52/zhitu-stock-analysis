@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>智兔短线分析报告 · 演示版</title>
+  <style>
+    :root { --paper:#f4f0e7; --sheet:#fffdf7; --ink:#18211d; --muted:#6b716c; --line:#d9d4c9; --up:#b43a31; --down:#16705a; --amber:#9b6a18; --soft:#ebe6da; --shadow:0 18px 55px rgba(43,45,39,.10); font-synthesis:none; line-break:strict; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:"Aptos","Microsoft YaHei UI","Noto Sans CJK SC",sans-serif; font-size:16px; line-height:1.72; }
+    body.dark { --paper:#171b18; --sheet:#202622; --ink:#eef0e8; --muted:#aeb6ae; --line:#3d443e; --soft:#2a312c; --shadow:none; }
+    h1,h2,h3,p { margin-top:0; } h1,h2 { font-family:Georgia,"Noto Serif CJK SC","Songti SC",serif; font-weight:700; text-wrap:balance; }
+    p { text-wrap:pretty; } button,a { font:inherit; } a { color:inherit; text-underline-offset:3px; }
+    .topbar { position:sticky; top:0; z-index:20; display:flex; justify-content:space-between; align-items:center; padding:10px max(20px,calc((100vw - 1240px)/2)); border-bottom:1px solid color-mix(in oklch,var(--line) 72%,transparent); backdrop-filter:blur(18px); background:color-mix(in oklch,var(--paper) 84%,transparent); }
+    .brand { font-family:Georgia,"Noto Serif CJK SC",serif; font-weight:700; } .top-actions { display:flex; gap:8px; }
+    .icon-button,.filter { min-height:40px; padding:8px 13px; border:1px solid var(--line); background:var(--sheet); color:var(--ink); cursor:pointer; } .icon-button:hover,.filter:hover,.filter.active { border-color:var(--ink); }
+    main { width:min(1240px,calc(100% - 32px)); margin:36px auto 64px; }
+    .hero { position:relative; overflow:hidden; display:grid; grid-template-columns:1.6fr .7fr; gap:36px; min-height:360px; padding:clamp(28px,5vw,68px); background:var(--ink); color:var(--sheet); box-shadow:var(--shadow); }
+    .hero:after { content:""; position:absolute; right:-8%; bottom:-55%; width:42%; aspect-ratio:1; border:1px solid color-mix(in oklch,var(--sheet) 22%,transparent); border-radius:50%; box-shadow:0 0 0 44px color-mix(in oklch,var(--sheet) 4%,transparent),0 0 0 88px color-mix(in oklch,var(--sheet) 3%,transparent); }
+    .kicker,.eyebrow { display:block; margin-bottom:10px; color:var(--amber); font-size:12px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+    .hero h1 { max-width:12em; margin-bottom:18px; font-size:clamp(2.45rem,1.5rem + 3.2vw,5.6rem); line-height:1.08; letter-spacing:-.02em; } .hero p { max-width:38em; color:color-mix(in oklch,var(--sheet) 76%,transparent); }
+    .meta { display:grid; align-content:end; gap:14px; z-index:1; } .meta div { display:flex; justify-content:space-between; gap:20px; padding-bottom:9px; border-bottom:1px solid color-mix(in oklch,var(--sheet) 18%,transparent); } .meta span { color:color-mix(in oklch,var(--sheet) 62%,transparent); }
+    .quality { font-family:Georgia,serif; font-size:clamp(2rem,4vw,4rem); line-height:1; }
+    .section { margin-top:24px; padding:clamp(22px,3.3vw,42px); border:1px solid var(--line); background:var(--sheet); box-shadow:var(--shadow); }
+    .section-head { display:flex; justify-content:space-between; gap:24px; align-items:end; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--line); } .section-head h2 { margin:0; font-size:clamp(1.65rem,1.2rem + 1.5vw,2.6rem); } .section-head p { max-width:42em; margin:0; color:var(--muted); }
+    .tape { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); border-top:1px solid var(--line); border-left:1px solid var(--line); } .tape-item { min-height:132px; padding:18px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .tape-name,.tape-note,small { color:var(--muted); font-size:12px; } .tape-value { margin-top:12px; font-family:Georgia,serif; font-size:24px; font-variant-numeric:tabular-nums; } .tape-change { font-weight:800; font-variant-numeric:tabular-nums; } .up { color:var(--up); } .down { color:var(--down); } .flat { color:var(--muted); }
+    .summary-grid { display:grid; grid-template-columns:1.25fr .75fr; gap:18px; } .verdict { padding:26px; background:var(--soft); } .verdict strong { display:block; margin-bottom:8px; font-family:Georgia,"Noto Serif CJK SC",serif; font-size:clamp(1.5rem,3vw,2.7rem); line-height:1.25; } .flag-box { padding:24px; border:1px solid var(--line); } .flags,.pill-row { display:flex; flex-wrap:wrap; gap:8px; } .pill { display:inline-flex; padding:4px 9px; border:1px solid var(--line); font-size:12px; }
+    .rotation-track { display:grid; grid-template-columns:repeat(6,1fr); margin:0 0 28px; padding:0; list-style:none; border:1px solid var(--line); } .rotation-step { position:relative; min-height:98px; padding:16px; border-right:1px solid var(--line); color:var(--muted); } .rotation-step:last-child { border-right:0; } .rotation-step.active { background:var(--ink); color:var(--sheet); } .step-index { display:block; margin-bottom:20px; font:12px/1 monospace; }
+    .rotation-copy { display:grid; grid-template-columns:.45fr 1fr; gap:28px; align-items:start; } .rotation-current { display:block; font-family:Georgia,"Noto Serif CJK SC",serif; font-size:2.5rem; } .rotation-copy p { color:var(--muted); } .rotation-groups { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:20px; } .rotation-groups>div { padding:16px; background:var(--soft); } .rotation-groups>div>span { display:block; margin-bottom:10px; color:var(--muted); font-size:12px; } .rotation-groups em { color:var(--muted); font-style:normal; font-size:13px; }
+    .signal-grid { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line); border-left:1px solid var(--line); } .signal-block { min-height:190px; padding:24px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); } .signal-count { display:block; font:700 3.4rem/1 Georgia,serif; } .signal-block h3 { margin:25px 0 8px; } .signal-block p { color:var(--muted); font-size:14px; }
+    .filter-bar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; } .filter { background:transparent; } .table-wrap { overflow:auto; border:1px solid var(--line); } table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; } th,td { padding:15px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; } th { color:var(--muted); font-size:12px; letter-spacing:.07em; white-space:nowrap; } td { min-width:112px; } td:nth-child(4) { min-width:250px; } tr:last-child td { border-bottom:0; } .code,td small,.exposure { display:block; margin-top:5px; } .signal-tag,.status { display:inline-flex; padding:3px 7px; background:var(--soft); font-size:12px; } .score { font:700 2rem/1 Georgia,serif; } .exposure { white-space:nowrap; } .risk-text { color:var(--up); }
+    .status.confirmed,.status.pass,.status.verified { color:var(--down); } .status.missing,.status.failed,.status.risk { color:var(--up); } .status.pending,.status.partial { color:var(--amber); }
+    .thesis-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; } .thesis { padding:24px; border:1px solid var(--line); } .thesis.bull { border-top:5px solid var(--up); } .thesis.bear { border-top:5px solid var(--down); } .thesis ul,.risk-list { margin:0; padding-left:1.25em; } .thesis li,.risk-list li { margin:8px 0; }
+    .sources { margin:0; padding:0; list-style:none; } .sources li { display:grid; grid-template-columns:38px 1fr; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); } .sources li>span { color:var(--muted); font:12px/1.7 monospace; } .sources small { display:block; }
+    .empty { padding:22px; border:1px dashed var(--line); color:var(--muted); } .empty-line { color:var(--muted); } .disclaimer { margin-top:24px; padding:22px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); }
+    [hidden] { display:none!important; }
+    @media (max-width:900px) { .hero,.summary-grid,.rotation-copy,.thesis-grid { grid-template-columns:1fr; } .rotation-track { grid-template-columns:repeat(3,1fr); } .rotation-step:nth-child(3) { border-right:0; } .rotation-groups,.signal-grid { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:580px) { main { width:min(100% - 20px,1240px); margin-top:14px; } .topbar { padding:8px 10px; } .brand { font-size:13px; } .hero { padding:26px 20px; } .section { padding:20px 14px; } .section-head { display:block; } .section-head p { margin-top:8px; } .rotation-track,.rotation-groups,.signal-grid { grid-template-columns:1fr; } .rotation-step { border-right:0; } .signal-block { min-height:auto; } }
+    @media print { body { background:#fff; color:#111; } .topbar,.filter-bar { display:none; } main { width:100%; margin:0; } .hero,.section { break-inside:avoid; box-shadow:none; } .hero { min-height:auto; } a { text-decoration:none; } }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand">ZHITU · SHORT-HORIZON RESEARCH</div><div class="top-actions"><button class="icon-button" id="theme">明暗</button><button class="icon-button" onclick="window.print()">打印 / PDF</button></div></header>
+  <main>
+    <section class="hero" id="top"><div><span class="kicker">Research report · 非收益承诺</span><h1>智兔短线分析报告 · 演示版</h1><p>以下数值仅用于验证版式与交互，不代表任何真实证券或交易日</p></div><div class="meta">
+      <div><span>数据截止</span><strong>演示数据 · 非实时</strong></div>
+      <div><span>生成时间</span><strong>2026-07-15 15:30 CST</strong></div>
+      <div><span>市场状态</span><strong>收盘后演示</strong></div>
+      <div><span>数据质量</span><strong class="quality">92</strong></div>
+      <div><span>研究层级</span><strong>观察级</strong></div>
+    </div></section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">01 · MARKET TAPE</span><h2>大盘与海外传导</h2></div><p>同一分析必须标明交易时段与时间戳，避免把昨夜收盘和今日盘中混在一起。</p></div>
+      <div class="tape"><article class="tape-item"><div class="tape-name">上证指数</div><div class="tape-value">示例 3512</div><div class="tape-change up">+0.62%</div><div class="tape-note">演示收盘</div></article><article class="tape-item"><div class="tape-name">沪深300</div><div class="tape-value">示例 4088</div><div class="tape-change up">+0.31%</div><div class="tape-note">演示收盘</div></article><article class="tape-item"><div class="tape-name">全市场成交</div><div class="tape-value">示例 1.18 万亿</div><div class="tape-change up">+6.40%</div><div class="tape-note">较演示基准</div></article><article class="tape-item"><div class="tape-name">涨跌家数</div><div class="tape-value">示例 3180 / 1760</div><div class="tape-change up">偏强</div><div class="tape-note">演示宽度</div></article></div>
+      <div style="height:12px"></div><div class="tape"><article class="tape-item"><div class="tape-name">标普500</div><div class="tape-value">上一演示时段</div><div class="tape-change up">+0.44%</div><div class="tape-note">已收盘</div></article><article class="tape-item"><div class="tape-name">日经225</div><div class="tape-value">演示盘中</div><div class="tape-change down">-0.28%</div><div class="tape-note">盘中</div></article><article class="tape-item"><div class="tape-name">美元指数</div><div class="tape-value">示例 99.8</div><div class="tape-change down">-0.15%</div><div class="tape-note">盘中</div></article><article class="tape-item"><div class="tape-name">离岸人民币</div><div class="tape-value">示例 7.17</div><div class="tape-change up">+0.12%</div><div class="tape-note">盘中</div></article></div>
+    </section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">02 · EXECUTIVE VIEW</span><h2>一句话结论与质量边界</h2></div><p>HTML 演示报告不表达真实市场判断。</p></div>
+      <div class="summary-grid"><div class="verdict"><strong>轮动处于强化向分化过渡，候选只做条件观察</strong><p>用于检查大盘、海外、轮动、信号、候选、证据和风险是否形成清晰层级。</p></div>
+      <div class="flag-box"><span class="eyebrow">数据质量标记</span><div class="flags"><span class="pill">演示数据</span><span class="pill">未接入实时接口</span><span class="pill">不得用于交易</span></div></div></div>
+    </section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">03 · ROTATION</span><h2>板块轮动：现在轮到哪里</h2></div><p>阶段判断必须同时给出支持证据与反证，不把单日冲高直接称为主升。</p></div>
+      <ol class="rotation-track"><li class="rotation-step"><span class="step-index">01</span><strong>启动</strong></li><li class="rotation-step active"><span class="step-index">02</span><strong>强化</strong></li><li class="rotation-step"><span class="step-index">03</span><strong>加速</strong></li><li class="rotation-step"><span class="step-index">04</span><strong>分化</strong></li><li class="rotation-step"><span class="step-index">05</span><strong>退潮</strong></li><li class="rotation-step"><span class="step-index">06</span><strong>反弹</strong></li></ol>
+      <div class="rotation-copy">
+        <div><span class="eyebrow">当前位置</span><strong class="rotation-current">强化末段</strong></div>
+        <p>演示板块的涨停家数和成交占比继续扩张，但高位股分歧增加；若次日宽度收窄，则应从进攻切回确认模式。</p>
+      </div>
+      <div class="rotation-groups">
+        <div><span>领涨</span><span class="pill leader">演示板块 A</span></div>
+        <div><span>强化</span><span class="pill rising">演示板块 B</span><span class="pill rising">演示板块 C</span></div>
+        <div><span>退潮</span><span class="pill fading">演示板块 D</span></div>
+      </div>
+    </section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">04 · SIGNAL MAP</span><h2>底部启动、加速、涨停与连板</h2></div><p>四类信号分开统计；同一标的只指定一个主标签，避免重复计数夸大强度。</p></div><div class="signal-grid"><article class="signal-block" data-signal="bottom_start"><span class="signal-count">3</span><h3>底部启动</h3><p>缩量筑底后放量突破，仍需次日承接确认。</p></article><article class="signal-block" data-signal="accelerating"><span class="signal-count">2</span><h3>加速候选</h3><p>趋势与板块共振，但拥挤度已上升。</p></article><article class="signal-block" data-signal="limit_up"><span class="signal-count">4</span><h3>涨停结构</h3><p>首板质量分化，过滤一字板与高炸板率。</p></article><article class="signal-block" data-signal="consecutive_limit_up"><span class="signal-count">1</span><h3>连板结构</h3><p>只保留换手充分且板块宽度未衰减的结构。</p></article></div></section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">05 · CANDIDATES</span><h2>条件式候选与模型仓位</h2></div><p>仅展示沪深主板且非 ST 的候选；仓位是研究用模型区间，必须与确认条件和失效条件配套。</p></div>
+      <div class="filter-bar" aria-label="候选过滤">
+        <button class="filter active" data-filter="all">全部</button>
+        <button class="filter" data-filter="bottom_start">底部启动</button>
+        <button class="filter" data-filter="accelerating">加速</button>
+        <button class="filter" data-filter="limit_up">涨停</button>
+        <button class="filter" data-filter="consecutive_limit_up">连板</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>标的</th><th>主信号 / 板块</th><th>评分</th><th>研究理由</th><th>模型仓位</th><th>不追 / 失效</th></tr></thead>
+        <tbody><tr data-signal="bottom_start"><td><strong>主板示例甲</strong><span class="code">60XXXX</span></td><td><span class="signal-tag">底部启动</span><small>演示板块 A</small></td><td><span class="score">78</span><small>优先观察</small></td><td>放量站回演示压力位<br>板块从启动进入强化<br>示例证据覆盖较完整</td><td><span class="exposure">初始 8%-10%</span><span class="exposure">确认 12%-15%</span><span class="exposure">上限 20%</span></td><td><strong class="risk-text">高开超过 5% 不追</strong><small>跌破启动日低点或板块转入退潮</small></td></tr><tr data-signal="accelerating"><td><strong>主板示例乙</strong><span class="code">00XXXX</span></td><td><span class="signal-tag">加速候选</span><small>演示板块 B</small></td><td><span class="score">74</span><small>条件观察</small></td><td>相对强度持续抬升<br>成交未出现极端透支</td><td><span class="exposure">初始 5%-8%</span><span class="exposure">确认 10%-12%</span><span class="exposure">上限 15%</span></td><td><strong class="risk-text">加速缺口过大不追</strong><small>放量滞涨且板块宽度连续收缩</small></td></tr><tr data-signal="limit_up"><td><strong>主板示例丙</strong><span class="code">60YYYY</span></td><td><span class="signal-tag">涨停结构</span><small>演示板块 A</small></td><td><span class="score">69</span><small>观察</small></td><td>首板换手结构可观察<br>非一字板演示结构</td><td><span class="exposure">初始 0%-5%</span><span class="exposure">确认 8%-10%</span><span class="exposure">上限 12%</span></td><td><strong class="risk-text">竞价不及预期则放弃</strong><small>炸板回落且同板块首板无跟随</small></td></tr></tbody>
+      </table></div>
+    </section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">06 · EVIDENCE</span><h2>公告、财报、官网与调研证据</h2></div><p>缺少订单、产能、收入占比或一手资料时必须降分或封顶，题材热度不能补足证据缺口。</p></div><div class="table-wrap"><table class="evidence-table"><thead><tr><th>证据类别</th><th>状态</th><th>结论</th><th>可得时间</th></tr></thead><tbody><tr><td>财报</td><td><span class="status confirmed">演示已覆盖</span></td><td>版式演示：报告期与披露时间分开显示。</td><td>演示日期</td></tr><tr><td>公司公告</td><td><span class="status confirmed">演示已覆盖</span></td><td>版式演示：重大事实链接原始公告。</td><td>演示日期</td></tr><tr><td>订单验证</td><td><span class="status partial">演示待补</span></td><td>只有框架协议时不得写成已确认收入。</td><td>待核验</td></tr><tr><td>产能验证</td><td><span class="status missing">演示缺失</span></td><td>缺少投产或利用率证据时执行评分封顶。</td><td>未提供</td></tr></tbody></table></div></section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">07 · TWO-SIDED VIEW</span><h2>正反逻辑与失效条件</h2></div><p>把最强反方解释与风险前置，避免把分析写成只支持买入的单向叙事。</p></div>
+      <div class="thesis-grid"><article class="thesis bull"><h3>支持逻辑</h3><ul><li>演示板块的涨停宽度、成交占比和中军强度同时改善。</li><li>示例候选的价格结构与一手证据闸门同时通过。</li></ul></article><article class="thesis bear"><h3>反方逻辑</h3><ul><li>强化末段可能迅速转入分化，次日冲高回落风险上升。</li><li>海外风险偏好回落或人民币走弱可能压制高弹性方向。</li></ul></article></div>
+      <div class="flag-box" style="margin-top:18px"><h3>风险与失效</h3><ul class="risk-list"><li>任何实时字段缺失、陈旧或时间戳错位时，报告自动降为观察。</li><li>一字涨停、高位连板、极端换手和多次炸板不纳入追涨候选。</li><li>本文件是设计演示，不含真实证券建议。</li></ul></div>
+    </section>
+
+    <section class="section"><div class="section-head"><div><span class="eyebrow">08 · SOURCES</span><h2>来源与可追溯性</h2></div><p>市场数据注明智兔返回时间；公司与政策事实优先链接交易所、公司、政府或监管原文。</p></div><ol class="sources"><li><span>01</span><div><strong><a href="https://www.zhituapi.com/hsstockapi.html" target="_blank" rel="noreferrer">智兔沪深 A 股 API 文档</a></strong><small>接口文档 · 访问时核验</small></div></li><li><span>02</span><div><strong><a href="https://www.zhituapi.com/hsindexapi.html" target="_blank" rel="noreferrer">智兔沪深指数 API 文档</a></strong><small>接口文档 · 访问时核验</small></div></li></ol></section>
+    <footer class="disclaimer">演示文件仅用于验证 HTML 报告的版式、交互和打印效果；全部行情、板块、候选与仓位均为虚构示例，不得用于交易。</footer>
+  </main>
+  <script type="application/json" id="report-meta">{&quot;candidate_count&quot;: 3}</script>
+  <script>
+    const themeButton=document.getElementById('theme');
+    const savedTheme=localStorage.getItem('zhitu-report-theme');
+    if(savedTheme==='dark') document.body.classList.add('dark');
+    themeButton.addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('zhitu-report-theme',document.body.classList.contains('dark')?'dark':'light');});
+    document.querySelectorAll('.filter').forEach(button=>button.addEventListener('click',()=>{
+      document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active')); button.classList.add('active');
+      const target=button.dataset.filter; document.querySelectorAll('tbody tr[data-signal]').forEach(row=>row.hidden=target!=='all'&&row.dataset.signal!==target);
+    }));
+  </script>
+</body>
+</html>
