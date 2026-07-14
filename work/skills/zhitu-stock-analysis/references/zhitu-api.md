@@ -26,6 +26,18 @@ Source documents:
 - All-market and up-to-20-stock public realtime interfaces: one-minute update cadence. All-market has one-request-per-minute limit and eligible-plan restriction.
 - Financial, shareholder, executive, and dividend data are not realtime; treat their disclosed report date as essential metadata.
 - Rate limits vary by plan. Use the provider's current document and contract as the source of truth.
+- Monitor the provider upgrade log before releases. Endpoint availability, fields, and minute-adjustment rules can change; run fixed payload regression tests after a documented change.
+
+## Error semantics
+
+| HTTP status | Meaning | Client action |
+|---|---|---|
+| `401` | Daily request allowance exhausted | Stop non-critical calls; do not retry until allowance resets. |
+| `402` | Invalid/nonexistent token | Stop and request credential correction. |
+| `404` | Resource or URL not found | Validate endpoint, code, date, and API version. |
+| `429` | Per-minute rate exceeded | Retry with exponential backoff and jitter. |
+
+Network timeouts and 5xx errors may be retried 2–3 times. Never record the full token-bearing URL in logs.
 
 ## Code and batching
 
