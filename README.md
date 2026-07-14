@@ -30,10 +30,13 @@
 - 数据时效、Point-in-Time、复权口径和缺失原因管理；
 - 实时行情、历史行情及技术指标诊断；
 - 涨停、跌停、炸板和板块延续性复盘；
+- 每次分析固定输出板块轮动位置，区分启动、强化、加速、分化、退潮和反弹；
+- 按轮动阶段筛选对应沪深主板候选，并输出推荐理由、反证、分批仓位、确认及失效条件；
 - 财务报表、财务指标、股东及股本分析；
 - 公告、财报、公司官网和调研记录证据评分；
 - 行业地位、收入占比、订单和产能验证；
 - 美股、日本、韩国、港股、汇率、利率、商品、海外政策及地缘风险分析；
+- 每次分析固定输出大盘、流动性、市场宽度及海外交易时段详情；
 - 将“次日涨停”“次日上涨”“五日超额收益”作为不同研究目标；
 - 输出透明评分、证据缺口、反方观点和失效条件。
 
@@ -156,10 +159,13 @@ The workflow does not rank stocks solely by theme popularity. Candidates must al
 - Freshness, point-in-time, adjustment, and missing-reason controls;
 - Realtime and historical market-data diagnostics;
 - Limit-up, limit-down, failed-limit, and sector follow-through review;
+- Mandatory sector-rotation positioning for every analysis, including starting, strengthening, accelerating, diverging, fading, and rebounding stages;
+- Rotation-linked main-board candidates with reasons, counter-evidence, staged model-portfolio exposure, confirmation, and invalidation conditions;
 - Financial statement, ratio, capital, and shareholder analysis;
 - Evidence scoring for filings, financial reports, official websites, and investor-relations records;
 - Industry-position, revenue-exposure, order, and production-capacity validation;
 - Global risk overlays covering US, Japanese, Korean, and Hong Kong markets, FX, rates, commodities, foreign policy, and geopolitical events;
+- A mandatory market/global dashboard in every analysis, including liquidity, breadth, overseas session state, and timestamp alignment;
 - Separate research labels for next-session limit-up, next-session positive return, and five-session excess return;
 - Transparent component scores, evidence gaps, bear cases, and invalidation conditions.
 
