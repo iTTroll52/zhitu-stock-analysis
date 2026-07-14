@@ -5,10 +5,11 @@
 1. 自检与配置
 2. API 客户端
 3. 主板预筛
-4. 板块轮动
-5. 信号复盘
-6. 一手证据闸门
-7. 准确性边界
+4. 市场状态与空仓
+5. 板块轮动
+6. 信号复盘
+7. 一手证据闸门
+8. 准确性边界
 
 ## 1. 自检与配置
 
@@ -61,7 +62,17 @@ python scripts/screen_main_board.py --codes 600000 000001 --top 20 --output scre
 
 该分数只用于缩小研究范围。不得与 100 分基本面研究分混用，也不得解释成上涨或涨停概率。
 
-## 4. 板块轮动
+## 4. 市场状态与空仓
+
+将同一截点的指数、宽度、同时间成交、涨跌停/炸板和轮动阶段聚合为 JSON：
+
+```powershell
+python scripts/market_regime.py market.json --output market-regime.json
+```
+
+数据质量低于80、缺少 `source_time/cutoff_time` 或独立市场组件少于四类时，脚本阻断决策。没有样本外验证时只输出 `experimental_research_state`；`cash` 是有效结论，不能为了生成股票名单跳过。
+
+## 5. 板块轮动
 
 `scripts/sector_rotation.py` 接受带历史时点的标准化股票快照：
 
@@ -93,7 +104,7 @@ python scripts/sector_rotation.py snapshots.json --output rotation.json
 - 空行业映射不得自动归入“其他”；
 - 阶段标签只是描述规则，必须同时输出指标和反证。
 
-## 5. 信号复盘
+## 6. 信号复盘
 
 初始化账本：
 
@@ -143,12 +154,12 @@ python scripts/research_tracker.py --db research.sqlite3 record signals.json
 ```powershell
 python scripts/research_tracker.py --db research.sqlite3 snapshot closes.json
 python scripts/research_tracker.py --db research.sqlite3 evaluate
-python scripts/research_tracker.py --db research.sqlite3 report
+python scripts/research_tracker.py --db research.sqlite3 report --min-sample 30
 ```
 
-复盘按实际存在的后续交易日计算 T+1/T+5/T+20，输出样本量、命中率、平均收益、平均超额收益和 Wilson 95% 区间。
+复盘按实际存在的后续交易日计算 T+1/T+5/T+20，按 `objective + ruleset_version + horizon` 分组，输出样本量、命中率、平均收益、平均超额收益和 Wilson 95% 区间。达到最小样本量仍不等于通过样本外验证。
 
-## 6. 一手证据闸门
+## 7. 一手证据闸门
 
 市场预筛后，为每个候选建立证据 JSON，并执行：
 
@@ -160,7 +171,7 @@ python scripts/evidence_gate.py evidence.json --output evidence-report.json
 
 脚本拒绝预测截点以后才公开的证据，自动执行缺失财报、公司一手资料、订单和产能的封顶规则。公司官网域名无法由通用脚本可靠识别时，必须人工确认域名归属。
 
-## 7. 准确性边界
+## 8. 准确性边界
 
 - 不足一个完整市场周期、样本量过小或没有样本外区间时，不把命中率外推为未来概率。
 - 统计前固定 `objective`、截点、规则版本、买入可成交假设、手续费和滑点。

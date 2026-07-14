@@ -209,12 +209,13 @@ def wilson_interval(hits: int, total: int, z: float = 1.96) -> tuple[float, floa
     return max(0, center - margin), min(1, center + margin)
 
 
-def report(connection: sqlite3.Connection) -> dict[str, Any]:
+def report(connection: sqlite3.Connection, min_sample: int = 30) -> dict[str, Any]:
     rows = connection.execute(
-        """SELECT s.objective, o.horizon, COUNT(o.hit) AS n, SUM(o.hit) AS hits,
+        """SELECT s.objective, s.ruleset_version, o.horizon, COUNT(o.hit) AS n, SUM(o.hit) AS hits,
         AVG(o.stock_return) AS avg_stock_return, AVG(o.excess_return) AS avg_excess_return
         FROM outcomes o JOIN signals s ON s.id=o.signal_id
-        GROUP BY s.objective, o.horizon ORDER BY s.objective, o.horizon"""
+        GROUP BY s.objective, s.ruleset_version, o.horizon
+        ORDER BY s.objective, s.ruleset_version, o.horizon"""
     ).fetchall()
     groups = []
     for row in rows:
@@ -222,6 +223,7 @@ def report(connection: sqlite3.Connection) -> dict[str, Any]:
         groups.append(
             {
                 "objective": row["objective"],
+                "ruleset_version": row["ruleset_version"],
                 "horizon": row["horizon"],
                 "sample_size": row["n"],
                 "hits": row["hits"],
@@ -229,10 +231,13 @@ def report(connection: sqlite3.Connection) -> dict[str, Any]:
                 "wilson_95": list(interval) if interval else None,
                 "avg_stock_return_pct": row["avg_stock_return"],
                 "avg_excess_return_pct": row["avg_excess_return"],
+                "sample_status": "minimum_reached" if row["n"] >= min_sample else "insufficient_sample",
             }
         )
     return {
         "groups": groups,
+        "minimum_sample_reference": min_sample,
+        "publication_rule": "Keep each objective and ruleset_version separate. Minimum sample size alone does not prove out-of-sample validity.",
         "warning": "Do not convert scores to probabilities until sample size, base rate, costs, fill constraints, and out-of-sample calibration are adequate.",
     }
 
@@ -247,7 +252,8 @@ def main() -> int:
     snapshot_parser = subparsers.add_parser("snapshot")
     snapshot_parser.add_argument("input", type=Path)
     subparsers.add_parser("evaluate")
-    subparsers.add_parser("report")
+    report_parser = subparsers.add_parser("report")
+    report_parser.add_argument("--min-sample", type=int, default=30)
     args = parser.parse_args()
     connection = connect(args.db)
     if args.command == "init":
@@ -261,7 +267,7 @@ def main() -> int:
     elif args.command == "evaluate":
         output = {"outcomes_written": evaluate(connection)}
     else:
-        output = report(connection)
+        output = report(connection, max(1, args.min_sample))
     print(json.dumps(output, ensure_ascii=False, indent=2))
     return 0
 
