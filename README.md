@@ -26,6 +26,8 @@
 - 单只或批量 A 股行情分析；
 - 沪深主板交易资格过滤；
 - 股票列表和 ST 清单过滤；
+- 行情、股票池和财务数据的确定性质量校验；
+- 数据时效、Point-in-Time、复权口径和缺失原因管理；
 - 实时行情、历史行情及技术指标诊断；
 - 涨停、跌停、炸板和板块延续性复盘；
 - 财务报表、财务指标、股东及股本分析；
@@ -86,7 +88,13 @@ ZHITU_API_TOKEN=replace_with_your_zhitu_token
 python .\work\skills\zhitu-stock-analysis\scripts\test_connection.py
 ```
 
-测试脚本会检查股票列表、ST 清单、单股实时行情和财务指标接口，只输出成功状态和记录数量，不输出 Token 或完整响应内容。
+测试脚本会检查股票列表、ST 清单、单股实时行情和财务指标接口，并输出数据质量分和异常代码；不会输出 Token 或完整响应内容。
+
+也可以校验已保存的 JSON：
+
+```powershell
+python .\work\skills\zhitu-stock-analysis\scripts\data_quality.py quote quote.json
+```
 
 ### 项目结构
 
@@ -102,9 +110,13 @@ python .\work\skills\zhitu-stock-analysis\scripts\test_connection.py
     ├── agents/openai.yaml
     ├── references/
     │   ├── analysis-framework.md
+    │   ├── data-quality-gates.md
     │   ├── global-risk-overlay.md
     │   └── zhitu-api.md
-    └── scripts/test_connection.py
+    └── scripts/
+        ├── data_quality.py
+        ├── test_connection.py
+        └── test_data_quality.py
 ```
 
 ### 数据来源
@@ -140,6 +152,8 @@ The workflow does not rank stocks solely by theme popularity. Candidates must al
 
 - Single-stock and batch A-share analysis;
 - Main-board eligibility and ST filtering;
+- Deterministic quality checks for quotes, universes, and financial payloads;
+- Freshness, point-in-time, adjustment, and missing-reason controls;
 - Realtime and historical market-data diagnostics;
 - Limit-up, limit-down, failed-limit, and sector follow-through review;
 - Financial statement, ratio, capital, and shareholder analysis;
@@ -198,7 +212,13 @@ Never place a real token in `SKILL.md`, browser-side code, public logs, or versi
 python .\work\skills\zhitu-stock-analysis\scripts\test_connection.py
 ```
 
-The script checks the stock-list, ST-list, single-stock realtime, and financial-ratio endpoint families. It prints only status and record counts, never the token or full API responses.
+The script checks the stock-list, ST-list, single-stock realtime, and financial-ratio endpoint families. It reports data-quality scores and issue codes while never printing the token or full API responses.
+
+Validate a saved JSON payload with:
+
+```powershell
+python .\work\skills\zhitu-stock-analysis\scripts\data_quality.py quote quote.json
+```
 
 ### Data sources
 
@@ -211,4 +231,3 @@ Material company and policy claims should be verified against original exchange 
 ### Disclaimer
 
 This project is intended for data research, software development, and investment education only. It does not provide investment advice, guaranteed returns, or discretionary portfolio management. Scores represent research priority, not a probability of price appreciation. Market data may be delayed, incomplete, or vendor-specific; verify licensing, subscription entitlements, and current API documentation before use.
-
