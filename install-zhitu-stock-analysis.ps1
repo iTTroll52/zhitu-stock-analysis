@@ -1,7 +1,11 @@
+param(
+    [string]$Destination
+)
+
 $ErrorActionPreference = 'Stop'
 
 $source = Join-Path $PSScriptRoot 'work\skills\zhitu-stock-analysis'
-$target = Join-Path $HOME '.codex\skills\zhitu-stock-analysis'
+$target = if ($Destination) { $Destination } else { Join-Path $HOME '.codex\skills\zhitu-stock-analysis' }
 
 if (-not (Test-Path -LiteralPath (Join-Path $source 'SKILL.md'))) {
     throw "Skill source not found: $source"
@@ -15,6 +19,16 @@ foreach ($directory in @('agents', 'references', 'scripts')) {
     $targetDirectory = Join-Path $target $directory
     New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
     Copy-Item -Path (Join-Path $sourceDirectory '*') -Destination $targetDirectory -Recurse -Force
+}
+
+$python = Get-Command python -ErrorAction SilentlyContinue
+if ($null -ne $python) {
+    & $python.Source (Join-Path $target 'scripts\self_check.py')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Installed skill failed completeness check.'
+    }
+} else {
+    Write-Warning 'Python was not found; copied files but skipped the completeness check.'
 }
 
 Write-Host "Installed: $target"
