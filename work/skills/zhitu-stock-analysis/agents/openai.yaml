@@ -1,4 +1,4 @@
 interface:
   display_name: "智兔短线股票分析"
-  short_description: "智兔主板底部启动、加速、涨停连板、轮动与业绩证据分析"
-  default_prompt: "Use $zhitu-stock-analysis to screen eligible main-board A-shares for bottom-launch, acceleration, first-limit-up, and consecutive-limit-up signals with rotation, sentiment, evidence, and risk validation."
+  short_description: "智兔主板短线选股、轮动、证据验证、仓位规划与HTML报告生成"
+  default_prompt: "Use $zhitu-stock-analysis to screen eligible main-board A-shares and produce a timestamped, shareable HTML research report."
