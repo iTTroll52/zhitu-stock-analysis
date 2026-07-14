@@ -225,10 +225,81 @@ def validate_financial_ratios(payload: Any) -> dict[str, Any]:
     )
 
 
+def _unwrap_list(payload: Any) -> list[dict[str, Any]] | None:
+    if isinstance(payload, dict) and isinstance(payload.get("data"), list):
+        payload = payload["data"]
+    if isinstance(payload, list) and all(isinstance(row, dict) for row in payload):
+        return payload
+    return None
+
+
+def validate_bars(payload: Any) -> dict[str, Any]:
+    rows = _unwrap_list(payload)
+    if not rows:
+        return _report("bars", [Issue("error", "bars.shape", "Expected a non-empty list of bar objects")])
+    issues: list[Issue] = []
+    timestamps: set[str] = set()
+    previous_time: datetime | None = None
+    for index, row in enumerate(rows):
+        time_text = str(row.get("t") or row.get("date") or row.get("d") or "").strip()
+        source_time = _date(time_text)
+        if source_time is None:
+            issues.append(Issue("error", "bars.time.invalid", f"Invalid timestamp at row {index}"))
+        elif time_text in timestamps:
+            issues.append(Issue("error", "bars.time.duplicate", f"Duplicate timestamp {time_text}"))
+        elif previous_time and source_time < previous_time:
+            issues.append(Issue("warn", "bars.order.descending", "Bars are not in ascending time order"))
+        if source_time:
+            previous_time = source_time
+        timestamps.add(time_text)
+
+        open_ = _number(row.get("o"))
+        high = _number(row.get("h"))
+        low = _number(row.get("l"))
+        close = _number(row.get("c") if row.get("c") is not None else row.get("p"))
+        if any(value is None for value in (open_, high, low, close)):
+            issues.append(Issue("error", "bars.ohlc.missing", f"Missing/non-numeric OHLC at row {index}"))
+        elif low > high or not low - PRICE_TOLERANCE <= open_ <= high + PRICE_TOLERANCE or not low - PRICE_TOLERANCE <= close <= high + PRICE_TOLERANCE:
+            issues.append(Issue("error", "bars.ohlc.invalid", f"Invalid OHLC relationship at row {index}"))
+        for field in ("v", "cje"):
+            value = _number(row.get(field))
+            if value is not None and value < 0:
+                issues.append(Issue("error", f"bars.negative.{field}", f"Negative {field} at row {index}"))
+    return _report("bars", issues, {"records": len(rows), "unique_timestamps": len(timestamps)})
+
+
+def validate_limit_pool(payload: Any) -> dict[str, Any]:
+    rows = _unwrap_list(payload)
+    if rows is None:
+        return _report("limit_pool", [Issue("error", "pool.shape", "Expected a list of pool objects")])
+    issues: list[Issue] = []
+    seen: set[str] = set()
+    for index, row in enumerate(rows):
+        code = str(row.get("dm", "")).lower().replace("sh", "").replace("sz", "")
+        if not re.fullmatch(r"\d{6}", code):
+            issues.append(Issue("error", "pool.code.invalid", f"Invalid code at row {index}"))
+        if code in seen:
+            issues.append(Issue("error", "pool.code.duplicate", f"Duplicate code {code}"))
+        seen.add(code)
+        price = _number(row.get("p"))
+        change_pct = _number(row.get("zf") if row.get("zf") is not None else row.get("pc"))
+        if price is None or price <= 0:
+            issues.append(Issue("error", "pool.price.invalid", f"Invalid price at row {index}"))
+        if change_pct is None:
+            issues.append(Issue("warn", "pool.change_pct.missing", f"Missing change percentage at row {index}"))
+        for field in ("cje", "lt", "zsz", "zj", "zbc", "lbc"):
+            value = _number(row.get(field))
+            if value is not None and value < 0:
+                issues.append(Issue("error", f"pool.negative.{field}", f"Negative {field} at row {index}"))
+    return _report("limit_pool", issues, {"records": len(rows), "unique_codes": len(seen)})
+
+
 VALIDATORS = {
+    "bars": validate_bars,
     "quote": validate_quote,
     "stock-list": validate_stock_list,
     "financial-ratios": validate_financial_ratios,
+    "limit-pool": validate_limit_pool,
 }
 
 
