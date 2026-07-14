@@ -1,4 +1,4 @@
 interface:
-  display_name: "智兔股票分析"
-  short_description: "智兔主板选股、基本面证据验证与全球风险分析"
-  default_prompt: "Use $zhitu-stock-analysis to screen eligible main-board A-shares and validate candidates with fundamentals, primary evidence, and global-market risk."
+  display_name: "智兔短线股票分析"
+  short_description: "智兔主板底部启动、加速、涨停连板、轮动与业绩证据分析"
+  default_prompt: "Use $zhitu-stock-analysis to screen eligible main-board A-shares for bottom-launch, acceleration, first-limit-up, and consecutive-limit-up signals with rotation, sentiment, evidence, and risk validation."
