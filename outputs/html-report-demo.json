@@ -1,0 +1,106 @@
+{
+  "title": "智兔短线分析报告 · 演示版",
+  "subtitle": "以下数值仅用于验证版式与交互，不代表任何真实证券或交易日",
+  "generated_at": "2026-07-15 15:30 CST",
+  "data_cutoff": "演示数据 · 非实时",
+  "market_session": "收盘后演示",
+  "research_tier": "观察级",
+  "data_quality": {
+    "score": 92,
+    "status": "pass",
+    "flags": ["演示数据", "未接入实时接口", "不得用于交易"]
+  },
+  "summary": {
+    "verdict": "轮动处于强化向分化过渡，候选只做条件观察",
+    "confidence": "HTML 演示报告不表达真实市场判断。",
+    "key_reason": "用于检查大盘、海外、轮动、信号、候选、证据和风险是否形成清晰层级。"
+  },
+  "market": [
+    {"name": "上证指数", "value": "示例 3512", "change_pct": 0.62, "session": "演示收盘"},
+    {"name": "沪深300", "value": "示例 4088", "change_pct": 0.31, "session": "演示收盘"},
+    {"name": "全市场成交", "value": "示例 1.18 万亿", "change_pct": 6.4, "session": "较演示基准"},
+    {"name": "涨跌家数", "value": "示例 3180 / 1760", "change": "偏强", "session": "演示宽度"}
+  ],
+  "global": [
+    {"name": "标普500", "value": "上一演示时段", "change_pct": 0.44, "session": "已收盘"},
+    {"name": "日经225", "value": "演示盘中", "change_pct": -0.28, "session": "盘中"},
+    {"name": "美元指数", "value": "示例 99.8", "change_pct": -0.15, "session": "盘中"},
+    {"name": "离岸人民币", "value": "示例 7.17", "change_pct": 0.12, "session": "盘中"}
+  ],
+  "rotation": {
+    "stage": "strengthening",
+    "current": "强化末段",
+    "narrative": "演示板块的涨停家数和成交占比继续扩张，但高位股分歧增加；若次日宽度收窄，则应从进攻切回确认模式。",
+    "leaders": ["演示板块 A"],
+    "strengthening": ["演示板块 B", "演示板块 C"],
+    "fading": ["演示板块 D"]
+  },
+  "signals": [
+    {"key": "bottom_start", "count": 3, "note": "缩量筑底后放量突破，仍需次日承接确认。"},
+    {"key": "accelerating", "count": 2, "note": "趋势与板块共振，但拥挤度已上升。"},
+    {"key": "limit_up", "count": 4, "note": "首板质量分化，过滤一字板与高炸板率。"},
+    {"key": "consecutive_limit_up", "count": 1, "note": "只保留换手充分且板块宽度未衰减的结构。"}
+  ],
+  "candidates": [
+    {
+      "code": "60XXXX",
+      "name": "主板示例甲",
+      "sector": "演示板块 A",
+      "primary_signal": "bottom_start",
+      "score": 78,
+      "tier": "优先观察",
+      "reasons": ["放量站回演示压力位", "板块从启动进入强化", "示例证据覆盖较完整"],
+      "exposure": {"initial": "8%-10%", "confirmation": "12%-15%", "maximum": "20%"},
+      "no_chase": "高开超过 5% 不追",
+      "invalidation": "跌破启动日低点或板块转入退潮"
+    },
+    {
+      "code": "00XXXX",
+      "name": "主板示例乙",
+      "sector": "演示板块 B",
+      "primary_signal": "accelerating",
+      "score": 74,
+      "tier": "条件观察",
+      "reasons": ["相对强度持续抬升", "成交未出现极端透支"],
+      "exposure": {"initial": "5%-8%", "confirmation": "10%-12%", "maximum": "15%"},
+      "no_chase": "加速缺口过大不追",
+      "invalidation": "放量滞涨且板块宽度连续收缩"
+    },
+    {
+      "code": "60YYYY",
+      "name": "主板示例丙",
+      "sector": "演示板块 A",
+      "primary_signal": "limit_up",
+      "score": 69,
+      "tier": "观察",
+      "reasons": ["首板换手结构可观察", "非一字板演示结构"],
+      "exposure": {"initial": "0%-5%", "confirmation": "8%-10%", "maximum": "12%"},
+      "no_chase": "竞价不及预期则放弃",
+      "invalidation": "炸板回落且同板块首板无跟随"
+    }
+  ],
+  "evidence": [
+    {"category": "财报", "status": "confirmed", "label": "演示已覆盖", "summary": "版式演示：报告期与披露时间分开显示。", "available_at": "演示日期"},
+    {"category": "公司公告", "status": "confirmed", "label": "演示已覆盖", "summary": "版式演示：重大事实链接原始公告。", "available_at": "演示日期"},
+    {"category": "订单验证", "status": "partial", "label": "演示待补", "summary": "只有框架协议时不得写成已确认收入。", "available_at": "待核验"},
+    {"category": "产能验证", "status": "missing", "label": "演示缺失", "summary": "缺少投产或利用率证据时执行评分封顶。", "available_at": "未提供"}
+  ],
+  "bull_case": [
+    "演示板块的涨停宽度、成交占比和中军强度同时改善。",
+    "示例候选的价格结构与一手证据闸门同时通过。"
+  ],
+  "bear_case": [
+    "强化末段可能迅速转入分化，次日冲高回落风险上升。",
+    "海外风险偏好回落或人民币走弱可能压制高弹性方向。"
+  ],
+  "risks": [
+    "任何实时字段缺失、陈旧或时间戳错位时，报告自动降为观察。",
+    "一字涨停、高位连板、极端换手和多次炸板不纳入追涨候选。",
+    "本文件是设计演示，不含真实证券建议。"
+  ],
+  "sources": [
+    {"name": "智兔沪深 A 股 API 文档", "url": "https://www.zhituapi.com/hsstockapi.html", "kind": "接口文档", "published_at": "访问时核验"},
+    {"name": "智兔沪深指数 API 文档", "url": "https://www.zhituapi.com/hsindexapi.html", "kind": "接口文档", "published_at": "访问时核验"}
+  ],
+  "disclaimer": "演示文件仅用于验证 HTML 报告的版式、交互和打印效果；全部行情、板块、候选与仓位均为虚构示例，不得用于交易。"
+}
