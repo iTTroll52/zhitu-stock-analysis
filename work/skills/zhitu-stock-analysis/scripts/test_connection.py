@@ -11,13 +11,15 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from data_quality import validate_financial_ratios, validate_quote, validate_stock_list
+
 
 BASE_URL = "https://api.zhituapi.com"
 TESTS = (
-    ("stock_list", "/hs/list/all", {}),
-    ("st_list", "/hs/list/fx", {}),
-    ("realtime_main_board", "/hs/real/ssjy/000001", {}),
-    ("financial_ratios", "/hs/fin/ratios/000001.SZ", {"st": "20250101"}),
+    ("stock_list", "/hs/list/all", {}, validate_stock_list),
+    ("st_list", "/hs/list/fx", {}, validate_stock_list),
+    ("realtime_main_board", "/hs/real/ssjy/000001", {}, validate_quote),
+    ("financial_ratios", "/hs/fin/ratios/000001.SZ", {"st": "20250101"}, validate_financial_ratios),
 )
 
 
@@ -71,9 +73,22 @@ def main() -> int:
         return 2
 
     failures = 0
-    for name, path, params in TESTS:
+    for name, path, params, validator in TESTS:
         try:
-            print(json.dumps(safe_summary(name, request_json(path, params, token))))
+            payload = request_json(path, params, token)
+            summary = safe_summary(name, payload)
+            quality = validator(payload)
+            summary.update(
+                {
+                    "quality_score": quality["quality_score"],
+                    "quality_status": quality["status"],
+                    "quality_issue_codes": [item["code"] for item in quality["issues"]],
+                }
+            )
+            if quality["status"] == "fail":
+                failures += 1
+                summary["ok"] = False
+            print(json.dumps(summary))
         except urllib.error.HTTPError as exc:
             failures += 1
             print(json.dumps({"test": name, "ok": False, "error": f"HTTP {exc.code}"}))
