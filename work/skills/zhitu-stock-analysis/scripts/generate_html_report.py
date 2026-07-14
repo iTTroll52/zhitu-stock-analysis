@@ -325,7 +325,7 @@ def main() -> int:
     if not isinstance(data, dict):
         raise SystemExit("Input JSON root must be an object.")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(build_html(data), encoding="utf-8", newline="\n")
+    args.output.write_text(build_html(data) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps({"output": str(args.output.resolve()), "bytes": args.output.stat().st_size}, ensure_ascii=False))
     return 0
 
